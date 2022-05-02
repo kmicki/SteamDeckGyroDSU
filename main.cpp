@@ -10,7 +10,7 @@ namespace kmicki::sdgyrodsu {
     #define INPUT_RECORD_LEN 8
     #define INPUT_FRAME_TIMEOUT_MS 5
     #define FREQ_DIVIDER 1
-    #define SCAN_PERIOD_MS 5
+    #define SCAN_PERIOD_MS 4
 
     typedef std::array<char,FRAME_LEN> frameType;
     typedef std::array<char,INPUT_FRAME_LEN> inputFrameType;
@@ -81,8 +81,11 @@ namespace kmicki::sdgyrodsu {
 
     void drawData(frameType frame,int num)
     {
+        static uint32_t lastInc;
+        uint32_t newInc = *(reinterpret_cast<uint32_t *>(frame.data()+4));
+
         move(0,0);
-        printw("%5d",num);
+        printw("%5d %d             ",num,newInc-lastInc);
         move(2,0);
         int k = 2;
         for (int i = 0; i < FRAME_LEN; ++i) {
@@ -91,6 +94,8 @@ namespace kmicki::sdgyrodsu {
                 move(++k,0);
         }
         refresh();
+
+        lastInc = newInc;
     }
 }
 
