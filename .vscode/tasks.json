@@ -1,0 +1,36 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Create bin directory",
+			"command": "mkdir -p \"${workspaceFolder}/bin\"",
+		},
+		{
+			"type": "cppbuild",
+			"label": "Build",
+			"dependsOn": "Create bin directory",
+			"command": "/usr/bin/g++",
+			"args": [
+				"-fdiagnostics-color=always",
+				"-g",
+				"${workspaceFolder}/*.cpp",
+				"-pthread",
+				"-lncurses",
+				"-o",
+				"${workspaceFolder}/bin/sdgyrodsu"
+			],
+			"options": {
+				"cwd": "${fileDirname}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: /usr/bin/g++"
+		}
+	]
+}
