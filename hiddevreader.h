@@ -40,6 +40,12 @@ namespace kmicki::sdgyrodsu
         // After finishing reading the frame, it is improtant to call UnlockFrame().
         frame_t const& GetFrame();
 
+        // Get current frame data.
+        // Locks frame for reading.
+        // If frame is locked for writing, it waits until writing is finished.
+        // Blocks if there was no new frame after last use of GetFrame or GetNewFrame
+        frame_t const& GetNewFrame();
+
         // Check if frame is currently being written to.
         // True means that GetFrame() will block until writing ends.
         bool const& IsFrameLockedForWriting() const;
@@ -78,6 +84,8 @@ namespace kmicki::sdgyrodsu
         void processData(std::vector<char> const& bufIn);        
 
         std::unique_ptr<std::ifstream> inputStream;
+
+        bool frameReadAlready;
     };
 
 }
