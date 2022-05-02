@@ -79,12 +79,13 @@ namespace kmicki::sdgyrodsu
     }
 
     // Extract HID frame from data read from /dev/usb/hiddevX
-    void HidDevReader::processData(std::vector<char> const& bufIn, frame_t &bufOut) 
+    void HidDevReader::processData(std::vector<char> const& bufIn) 
     {
         // Each byte is encapsulated in an 8-byte long record
-        for (int i = 0, j = BYTEPOS_INPUT; i < bufOut.size(); ++i,j+=INPUT_RECORD_LEN) {
-            bufOut[i] = bufIn[j];
+        for (int i = 0, j = BYTEPOS_INPUT; i < frame.size(); ++i,j+=INPUT_RECORD_LEN) {
+            frame[i] = bufIn[j];
         }
+        writingLock = false;
     }
 
     void HidDevReader::executeReadingTask()
@@ -124,9 +125,12 @@ namespace kmicki::sdgyrodsu
             }
             else {
                 // Start processing data in a separate thread unless previous processing has not finished
-                if(process.get() == nullptr || process.get()->wait_for(std::chrono::milliseconds(0)) == std::future_status::ready)
+                if( !readingLock && !preReadingLock 
+                    && 
+                    (process.get() == nullptr || process.get()->wait_for(std::chrono::milliseconds(0)) == std::future_status::ready))
                 {
-                    process.reset(new std::future<void>(std::async(std::launch::async, processData, std::cref(*buf), std::ref(frame))));
+                    writingLock = true;
+                    process.reset(new std::future<void>(std::async(std::launch::async, &HidDevReader::processData, this, std::cref(*buf))));
 
                     // swap buffers
                     if(buf == &buf1)

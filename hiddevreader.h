@@ -75,7 +75,7 @@ namespace kmicki::sdgyrodsu
         void executeReadingTask();
 
         static void reconnectInput(std::ifstream & stream, std::string path);
-        static void processData(std::vector<char> const& bufIn, frame_t &bufOut);        
+        void processData(std::vector<char> const& bufIn);        
 
         std::unique_ptr<std::ifstream> inputStream;
     };
