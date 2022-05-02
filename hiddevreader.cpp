@@ -20,7 +20,8 @@ namespace kmicki::sdgyrodsu
         writingLock(false),
         stopTask(false),
         scanPeriod(scanTime),
-        inputStream(nullptr)
+        inputStream(nullptr),
+        frameReadAlready(false)
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -46,7 +47,14 @@ namespace kmicki::sdgyrodsu
     HidDevReader::frame_t const& HidDevReader::GetFrame()
     {
         LockFrame();
+        frameReadAlready = true;
         return frame;
+    }
+
+    HidDevReader::frame_t const& HidDevReader::GetNewFrame()
+    {
+        while(frameReadAlready) ;
+        return GetFrame();
     }
 
     bool const& HidDevReader::IsFrameLockedForWriting() const
@@ -86,6 +94,7 @@ namespace kmicki::sdgyrodsu
             frame[i] = bufIn[j];
         }
         writingLock = false;
+        frameReadAlready = false;
     }
 
     void HidDevReader::executeReadingTask()
