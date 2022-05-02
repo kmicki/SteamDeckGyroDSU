@@ -5,7 +5,7 @@ using namespace kmicki::sdgyrodsu;
 
     #define FRAME_LEN 64
     #define FRAMECNT_PER_FILE 5000
-    #define SCAN_PERIOD_MS 5
+    #define SCAN_PERIOD_MS 2
 
     typedef HidDevReader::frame_t frame_t;
 
@@ -64,11 +64,15 @@ using namespace kmicki::sdgyrodsu;
 
     void drawData(frame_t frame,int num)
     {
+        static int maxSpan = 0;
         static uint32_t lastInc;
         uint32_t newInc = *(reinterpret_cast<uint32_t *>(frame.data()+4));
 
+        if(lastInc && newInc-lastInc > maxSpan)
+            maxSpan = newInc-lastInc;
+
         move(0,0);
-        printw("%5d %d             ",num,newInc-lastInc);
+        printw("%5d %d %d             ",num,newInc-lastInc,maxSpan);
         move(2,0);
         int k = 2;
         for (int i = 0; i < FRAME_LEN; ++i) {
@@ -118,6 +122,8 @@ int main()
             auto& frame = reader.GetNewFrame();
             output.write(frame.data(),frame.size());
             drawData(frame,i);
+            reader.UnlockFrame();
+            ++i;
         }
         output.close();
         ++part;

@@ -14,7 +14,7 @@ namespace kmicki::sdgyrodsu
 
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
     :   frameLen(_frameLen),
-        frame(frameLen),
+        frame(_frameLen),
         preReadingLock(false),
         readingLock(false),
         writingLock(false),
@@ -26,10 +26,10 @@ namespace kmicki::sdgyrodsu
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
         std::stringstream inputFilePathFormatter;
-        inputFilePathFormatter << "/dev/udb/hiddev" << hidNo;
+        inputFilePathFormatter << "/dev/usb/hiddev" << hidNo;
         inputFilePath = inputFilePathFormatter.str();
 
-        inputStream.reset(new std::ifstream(inputFilePath));
+        inputStream.reset(new std::ifstream(inputFilePath,std::ios_base::binary));
 
         if(inputStream.get()->fail())
             throw std::runtime_error("Failed to open hiddev file. Are priviliges granted?");
