@@ -3,7 +3,6 @@
 #include "sdhidframe.h"
 #include "shell.h"
 #include "presenter.h"
-#include <ncurses.h>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -42,26 +41,10 @@ int main()
 
     Presenter::Initialize();
 
-    int part = 0;
-
     while(true) {
-        std::ostringstream strStr;
-        strStr << "dump" << std::setfill('0') << std::setw(3) << part << ".hex";
-
-        std::ofstream output( strStr.str(), std::ios::binary );
-
-        int i = 0;
-
-        while(i < FRAMECNT_PER_FILE)
-        {
-            auto& frame = reader.GetNewFrame();
-            output.write(frame.data(),frame.size());
-            Presenter::Present(frame);
-            reader.UnlockFrame();
-            ++i;
-        }
-        output.close();
-        ++part;
+        auto& frame = reader.GetNewFrame();
+        Presenter::Present(frame);
+        reader.UnlockFrame();
     }
 
     Presenter::Finish();
