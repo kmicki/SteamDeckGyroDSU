@@ -13,8 +13,10 @@
 			"command": "/usr/bin/g++",
 			"args": [
 				"-fdiagnostics-color=always",
+				"-I",
+				"${workspaceFolder}/inc",
 				"-g",
-				"${workspaceFolder}/*.cpp",
+				"${workspaceFolder}/src/*.cpp",
 				"-pthread",
 				"-lncurses",
 				"-o",
