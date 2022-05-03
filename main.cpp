@@ -1,6 +1,9 @@
-#include "includes.h"
 #include "hiddevreader.h"
 #include "sdhidframe.h"
+#include <ncurses.h>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
 
 using namespace kmicki::sdgyrodsu;
 
