@@ -4,8 +4,7 @@
 #include "shell.h"
 #include "presenter.h"
 #include <iostream>
-#include <sstream>
-#include <iomanip>
+#include <future>
 
 using namespace kmicki::shell;
 using namespace kmicki::sdgyrodsu;
@@ -34,14 +33,18 @@ int main()
         return 0;
     }
 
-    std::cout << "Found hiddev" << hidno << std::endl << "Press any key";
-    std::cin.get();
+    std::cout << "Found hiddev" << hidno << std::endl;
     
     HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_MS);
 
     Presenter::Initialize();
 
-    while(true) {
+    std::basic_istream<char, std::char_traits<char>>::int_type (std::istream::*pointerToPeek)() = &std::istream::peek;
+
+    // Set up any key listener
+    auto anyKeyListener = std::async(std::launch::async,pointerToPeek,&std::cin);
+
+    while(anyKeyListener.wait_for(std::chrono::milliseconds(0)) == std::future_status::timeout) {
         auto& frame = reader.GetNewFrame();
         Presenter::Present(frame);
         reader.UnlockFrame();
