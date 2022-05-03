@@ -1,5 +1,6 @@
 #include "includes.h"
 #include "hiddevreader.h"
+#include "sdhidframe.h"
 
 using namespace kmicki::sdgyrodsu;
 
@@ -80,6 +81,23 @@ using namespace kmicki::sdgyrodsu;
             if(i % 16 == 15)
                 move(++k,0);
         }
+
+        SdHidFrame* sd = reinterpret_cast<SdHidFrame*>(frame.data());
+
+        ++k;
+        move(++k,0); printw("U1: %d         ",sd->Unknown1);
+        move(++k,0); printw("U2: %d         ",sd->Unknown2);
+        move(++k,0); printw("U3: %d         ",sd->Unknown3);
+        move(++k,0); printw("U4: %d         ",sd->Unknown4);
+        ++k;
+        move(++k,0); printw("A_RL: %d         ",sd->AccelAxisRightToLeft);
+        move(++k,0); printw("A_TB: %d         ",sd->AccelAxisTopToBottom);
+        move(++k,0); printw("A_FB: %d         ",sd->AccelAxisFrontToBack);
+        ++k;
+        move(++k,0); printw("G_RL: %d         ",sd->GyroAxisRightToLeft);
+        move(++k,0); printw("G_TB: %d         ",sd->GyroAxisTopToBottom);
+        move(++k,0); printw("G_FB: %d         ",sd->GyroAxisFrontToBack);
+
         refresh();
 
         lastInc = newInc;
