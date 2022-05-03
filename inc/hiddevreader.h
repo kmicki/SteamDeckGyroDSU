@@ -6,7 +6,7 @@
 #include <thread>
 #include <fstream>
 
-namespace kmicki::sdgyrodsu 
+namespace kmicki::hiddev 
 {
     // Reads periodic data from a given HID device (/dev/usb/hiddevX)
     // in constant-length frames and provides most recent frame.

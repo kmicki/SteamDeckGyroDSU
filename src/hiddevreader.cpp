@@ -6,7 +6,7 @@
 #include <future>
 #include <memory>
 
-namespace kmicki::sdgyrodsu
+namespace kmicki::hiddev
 {
     #define INPUT_RECORD_LEN 8
     #define BYTEPOS_INPUT 4
