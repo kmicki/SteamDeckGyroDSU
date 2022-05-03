@@ -1,5 +1,5 @@
-#ifndef _KMICKI_SDGYRODSU_HIDDEVREADER_H_
-#define _KMICKI_SDGYRODSU_HIDDEVREADER_H_
+#ifndef _KMICKI_HIDDEV_HIDDEVREADER_H_
+#define _KMICKI_HIDDEV_HIDDEVREADER_H_
 
 #include <vector>
 #include <string>
