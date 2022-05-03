@@ -1,10 +1,13 @@
 #include "hiddevreader.h"
 #include "sdhidframe.h"
+#include "shell.h"
 #include <ncurses.h>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 
+
+using namespace kmicki::shell;
 using namespace kmicki::sdgyrodsu;
 
     #define FRAME_LEN 64
@@ -13,29 +16,6 @@ using namespace kmicki::sdgyrodsu;
 
     typedef HidDevReader::frame_t frame_t;
 
-    // Execute shell command, provide stdout and return code returned by the command
-    int exec(std::string cmd, std::string &stdout) {
-        std::array<char, 128> buffer;
-        stdout.clear();
-        FILE * pipe;
-        try {
-            pipe = popen(cmd.c_str(), "r");
-            if (!pipe) {
-                throw std::runtime_error("popen() failed!");
-            }
-            while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-                stdout += buffer.data();
-            }
-            return pclose(pipe);
-        }
-        catch(...) 
-        {
-            if(pipe)
-                pclose(pipe);
-            return -1;
-        }
-    }
-
     // find which X among /dev/usb/hiddevX fits Steam Deck Controls
     int findHidDevNo() 
     {
@@ -43,7 +23,7 @@ using namespace kmicki::sdgyrodsu;
         int bus,dev,bus2,dev2;
         int testlen;
         // Steam Deck controls: usb device VID: 28de, PID: 1205
-        if(exec("lsusb | grep '28de:1205' | sed -e \"s/.*Bus \\([0-9]\\+\\) Device \\([0-9]\\+\\).*/\\1 \\2/g\"",output) || (testlen = output.length()) != 8)
+        if(ExecuteCommand("lsusb | grep '28de:1205' | sed -e \"s/.*Bus \\([0-9]\\+\\) Device \\([0-9]\\+\\).*/\\1 \\2/g\"",output) || (testlen = output.length()) != 8)
             return -1;
 
         std::istringstream str(output);
@@ -56,7 +36,7 @@ using namespace kmicki::sdgyrodsu;
             std::ostringstream ostr;
             ostr << "udevadm info --query=all /dev/usb/hiddev" << i << " | grep 'P:' | sed -e \"s/.*usb\\([0-9]\\+\\).*\\.\\([0-9]\\+\\).*/\\1 \\2/g\"";
             std::string cmd = ostr.str();
-            if(exec(cmd,output) || output.length() > 8 ||  output.length() < 4)
+            if(ExecuteCommand(cmd,output) || output.length() > 8 ||  output.length() < 4)
                 continue;
             std::istringstream str(output);
             str >> bus2 >> dev2;
