@@ -9,6 +9,7 @@
 
 using namespace kmicki::shell;
 using namespace kmicki::sdgyrodsu;
+using namespace kmicki::hiddev;
 
     #define FRAME_LEN 64
     #define FRAMECNT_PER_FILE 5000
