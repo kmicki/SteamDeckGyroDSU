@@ -85,9 +85,4 @@ Use following commands to create a new user group and add current user to the gr
     
 Then restart the system and you can use the program without **sudo**:
 
-<<<<<<< HEAD
     ./bin/sdgyrodsu
-    
-=======
-    ./bin/sdgyrodsu
->>>>>>> dev
