@@ -1,12 +1,10 @@
 #include "hiddevreader.h"
 #include "hiddevfinder.h"
 #include "sdhidframe.h"
-#include "shell.h"
 #include "presenter.h"
 #include <iostream>
 #include <future>
 
-using namespace kmicki::shell;
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
 
@@ -46,8 +44,7 @@ int main()
 
 
     while(anyKeyListener.wait_for(std::chrono::milliseconds(0)) == std::future_status::timeout) {
-        auto& frame = reader.GetNewFrame();
-        auto const& frm = *reinterpret_cast<SdHidFrame const*>(frame.data());
+        auto const& frame = GetSdFrame(reader.GetNewFrame());
         Presenter::Present(frame);
         reader.UnlockFrame();
     }
