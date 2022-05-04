@@ -34,6 +34,7 @@ namespace kmicki::cemuhook::protocol
         uint32_t mac1; // unused - 0
         uint16_t max2; // unused - 0
         uint8_t battery; // unused - 0
+        uint8_t connected; // 1 - connected
     };
 
     struct InfoRequest
@@ -71,7 +72,6 @@ namespace kmicki::cemuhook::protocol
     {
         Header header;
         SharedResponse response;
-        uint8_t connected; // 1 - connected
         uint32_t packetNumber;
         uint8_t buttons1;
         uint8_t buttons2;
@@ -94,7 +94,6 @@ namespace kmicki::cemuhook::protocol
         uint8_t aR2;
         uint8_t aL2;
         uint32_t touch[3];
-        MotionData motion;
     };
 
 }

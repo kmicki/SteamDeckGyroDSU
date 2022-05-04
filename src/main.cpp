@@ -2,6 +2,7 @@
 #include "hiddevfinder.h"
 #include "sdhidframe.h"
 #include "presenter.h"
+#include "cemuhookprotocol.h"
 #include <iostream>
 #include <future>
 
@@ -18,6 +19,7 @@ using namespace kmicki::hiddev;
 typedef HidDevReader::frame_t frame_t;
 
 using namespace kmicki::sdgyrodsu;
+using namespace kmicki::cemuhook::protocol;
 
 static std::exception_ptr teptr = nullptr;
 
