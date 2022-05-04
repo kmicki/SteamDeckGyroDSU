@@ -110,3 +110,4 @@ Raw gyro values around _16 (0x10)_ seem to be _1 deg/sec_ (not certain though).
 Four values unknown right now but related to motion for sure (**U1**,**U2**,**U3**,**U4**). Looks like they are absolute angles around absolute axes (not relative to Steam Deck but relative to gravity maybe?).
 
 For cemuhook-protocol (DSU) only acceleration and gyro values are needed. Status of remaining controls may also be used. To read them, see descriptions in _sdhidframe.h_.
+ 
