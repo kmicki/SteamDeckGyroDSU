@@ -1,4 +1,5 @@
 #include "cemuhookadapter.h"
+#include "sdhidframe.h"
 
 using namespace kmicki::cemuhook::protocol;
 
@@ -31,5 +32,27 @@ namespace kmicki::sdgyrodsu
         data.pitch = (float)frame.GyroAxisRightToLeft/gyro1dps;
         data.yaw = -(float)frame.GyroAxisFrontToBack/gyro1dps;
         data.roll = (float)frame.GyroAxisTopToBottom/gyro1dps;
+    }
+
+    CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader)
+    : reader(_reader)
+    {
+        ;
+    }
+
+    void CemuhookAdapter::StartFrameGrab() {}
+
+    MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
+    {
+        SetMotionData(GetSdFrame(reader.GetNewFrame()),data);
+        reader.UnlockFrame();
+        return data;
+    }
+
+    void CemuhookAdapter::StopFrameGrab() {}
+
+    bool CemuhookAdapter::IsControllerConnected()
+    {
+        return true;
     }
 }
