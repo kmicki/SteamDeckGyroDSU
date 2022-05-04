@@ -3,6 +3,7 @@
 #include "sdhidframe.h"
 #include "shell.h"
 #include "presenter.h"
+#include "gyrovaldetermine.h"
 #include <iostream>
 #include <future>
 
@@ -12,7 +13,7 @@ using namespace kmicki::hiddev;
 
 #define FRAME_LEN 64
 #define FRAMECNT_PER_FILE 5000
-#define SCAN_PERIOD_MS 2
+#define SCAN_PERIOD_MS 4
 
 #define VID 0x28de
 #define PID 0x1205
@@ -44,13 +45,20 @@ int main()
     // Set up any key listener
     auto anyKeyListener = std::async(std::launch::async,pointerToPeek,&std::cin);
 
+    GyroValDetermine gyroCheck;
+    gyroCheck.Reset();
+
     while(anyKeyListener.wait_for(std::chrono::milliseconds(0)) == std::future_status::timeout) {
         auto& frame = reader.GetNewFrame();
+        auto const& frm = *reinterpret_cast<SdHidFrame const*>(frame.data());
         Presenter::Present(frame);
+        gyroCheck.ProcessFrame(frm);
         reader.UnlockFrame();
     }
 
     Presenter::Finish();
+
+    std::cout << "Gyro Val for 1 Deg/Sec: " << gyroCheck.GetDegPerSecond() << std::endl;
 
     return 0;
 }
