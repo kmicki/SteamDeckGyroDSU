@@ -12,6 +12,8 @@ namespace kmicki::hiddev
     #define INPUT_RECORD_LEN 8
     #define BYTEPOS_INPUT 4
     #define INPUT_FRAME_TIMEOUT_MS 5
+    #define SCAN_DIVIDER 1
+
 
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
     :   frameLen(_frameLen),
@@ -23,7 +25,9 @@ namespace kmicki::hiddev
         scanPeriod(scanTime),
         inputStream(nullptr),
         frameReadAlready(false),
-        clients()
+        clients(),
+        lockMutex(),
+        clientsMutex()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -48,15 +52,17 @@ namespace kmicki::hiddev
 
     HidDevReader::frame_t const& HidDevReader::GetFrame(void * client)
     {
+        LockFrame(client);
+        clientsMutex.lock();
         if(clients.find(client) == clients.end())
             clients.insert(client);
-        LockFrame(client);
+        clientsMutex.unlock();
         return frame;
     }
 
     HidDevReader::frame_t const& HidDevReader::GetNewFrame(void * client)
     {
-        while(clients.find(client) != clients.end()) ;
+        while(clients.find(client) != clients.end()) std::this_thread::sleep_for(std::chrono::milliseconds(2));
         return GetFrame(client);
     }
 
@@ -71,6 +77,7 @@ namespace kmicki::hiddev
 
     void HidDevReader::LockFrame(void* client)
     {
+        lockMutex.lock();
         if(clientLocks.find(client) == clientLocks.end())
             clientLocks.insert(client);
         if(! preReadingLock && ! readingLock)
@@ -80,15 +87,18 @@ namespace kmicki::hiddev
             readingLock = true;
             preReadingLock = false;
         }
+        lockMutex.unlock();
     }
 
     void HidDevReader::UnlockFrame(void * client)
     {
-        auto iter = clientLocks.find(client);
-        if(iter != clientLocks.end())
+        lockMutex.lock();
+        std::set<void*>::iterator iter;
+        while((iter = clientLocks.find(client)) != clientLocks.end())
             clientLocks.erase(iter);
         if(clientLocks.size() == 0)
             readingLock = false;
+        lockMutex.unlock();
     }
 
     void HidDevReader::reconnectInput(std::ifstream & stream, std::string path)
@@ -101,14 +111,16 @@ namespace kmicki::hiddev
     // Extract HID frame from data read from /dev/usb/hiddevX
     void HidDevReader::processData(std::vector<char> const& bufIn) 
     {
+        clientsMutex.lock();
         // Each byte is encapsulated in an 8-byte long record
         for (int i = 0, j = BYTEPOS_INPUT; i < frame.size(); ++i,j+=INPUT_RECORD_LEN) {
             frame[i] = bufIn[j];
         }
         writingLock = false;
         frameReadAlready = false;
-
+        
         clients.clear();
+        clientsMutex.unlock();
     }
 
     void HidDevReader::executeReadingTask()
@@ -120,11 +132,29 @@ namespace kmicki::hiddev
         std::vector<char> buf2(INPUT_RECORD_LEN*frameLen);
         std::vector<char>* buf = &buf1; // buffer swapper
 
+        int scanDivider = 0;
+
         while(!stopTask)
         {
+            ++scanDivider;
+
             if(scan.get() != nullptr)
                 scan.get()->wait();
             scan.reset(new std::future<void>(std::async(std::launch::async,std::this_thread::sleep_for<int64_t,std::milli>,scanPeriod)));
+
+            if(scanDivider < SCAN_DIVIDER)
+            {
+                std::thread ignoreThread(static_cast<std::istream& (std::istream::*)(std::streamsize)>(&std::ifstream::ignore),&input,buf->size());
+                auto ignoreHandle = ignoreThread.native_handle();
+                auto ignoreTimeout=std::async(std::launch::async, &std::thread::join, &ignoreThread);
+                if (ignoreTimeout.wait_for(std::chrono::milliseconds(INPUT_FRAME_TIMEOUT_MS)) == std::future_status::timeout) {
+                    pthread_cancel(ignoreHandle);
+                    ignoreTimeout.wait();
+                    reconnectInput(input,inputFilePath);
+                }
+                continue;
+            }
+            scanDivider = 0;
 
             // Reading from hiddev is done in a separate thread.
             // Then future is created that waits for the reading to finish (by executing join).

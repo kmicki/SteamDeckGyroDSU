@@ -2,7 +2,11 @@
 #define _KMICKI_CEMUHOOK_CEMUHOOKSERVER_H_
 
 #include "cemuhookadapter.h"
+#include "cemuhookprotocol.h"
 #include <thread>
+#include <netinet/in.h>
+
+using namespace kmicki::cemuhook::protocol;
 
 namespace kmicki::cemuhook
 {
@@ -18,13 +22,27 @@ namespace kmicki::cemuhook
         private:
 
         bool stop;
+        bool stopSending;
+
         int socketFd;
 
         sdgyrodsu::CemuhookAdapter & motionSource;
         std::unique_ptr<std::thread> serverThread;
 
         void serverTask();
+        void sendTask(sockaddr_in sockInClient, uint32_t id);
         void Start();
+
+        VersionData versionAnswer;
+        InfoAnswer infoDeckAnswer;
+        InfoAnswer infoNoneAnswer;
+        DataEvent dataAnswer;
+
+        void PrepareAnswerConstants();
+
+        std::pair<uint16_t , void const*> PrepareVersionAnswer(uint32_t id);
+        std::pair<uint16_t , void const*> PrepareInfoAnswer(uint32_t id, uint8_t slot);
+        std::pair<uint16_t , void const*> PrepareDataAnswer(uint32_t id, uint32_t packet);
     };
 }
 

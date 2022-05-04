@@ -41,6 +41,7 @@ namespace kmicki::cemuhook::protocol
     struct InfoRequest
     {
         int32_t portCnt; // amount of ports to report
+        uint8_t slots[4];
     };
 
     struct InfoAnswer
@@ -59,7 +60,8 @@ namespace kmicki::cemuhook::protocol
 
     struct MotionData
     {
-        uint64_t timestamp;
+        uint32_t timestampL;
+        uint32_t timestampH;
         float accX;
         float accY;
         float accZ;
@@ -94,6 +96,7 @@ namespace kmicki::cemuhook::protocol
         uint8_t aR2;
         uint8_t aL2;
         uint32_t touch[3];
+        MotionData motion;
     };
 
 }

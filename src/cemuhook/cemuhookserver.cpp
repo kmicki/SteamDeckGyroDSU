@@ -1,39 +1,40 @@
 #include "cemuhookserver.h"
-#include "cemuhookprotocol.h"
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <stdexcept>
 #include <unistd.h>
 
 using namespace kmicki::sdgyrodsu;
-using namespace kmicki::cemuhook::protocol;
 
 #define PORT 26760
 #define BUFLEN 100
+#define SCANTIME 0
+#define DECKSLOT 0
+
+#define VERSION_TYPE 0x100000
+#define INFO_TYPE 0x100001
+#define DATA_TYPE 0x100002
 
 namespace kmicki::cemuhook
 {
 
-    uint32_t crc32(const char *s,size_t n) {
+    uint32_t crc32(const unsigned char *s,size_t n) {
         uint32_t crc=0xFFFFFFFF;
         
-        for(size_t i=0;i<n;i++) {
-            char ch=s[i];
-            for(size_t j=0;j<8;j++) {
-                uint32_t b=(ch^crc)&1;
-                crc>>=1;
-                if(b) crc=crc^0xEDB88320;
-                ch>>=1;
-            }
+        int k;
+
+        while (n--) {
+            crc ^= *s++;
+            for (k = 0; k < 8; k++)
+                crc = crc & 1 ? (crc >> 1) ^ 0xedb88320  : crc >> 1;
         }
-        
         return ~crc;
     }
 
     Server::Server(CemuhookAdapter & _motionSource)
-        : motionSource(_motionSource), stop(false), serverThread()
+        : motionSource(_motionSource), stop(false), serverThread(), stopSending(false)
     {
+        PrepareAnswerConstants();
         Start();
     }
     
@@ -81,68 +82,181 @@ namespace kmicki::cemuhook
         serverThread.reset(new std::thread(&Server::serverTask,this));
     }
 
-    void Server::serverTask()
+    void Server::PrepareAnswerConstants()
     {
-        uint8_t deckSlot = 0;
-
-        char buf[BUFLEN];
-        sockaddr_in sockInClient;
-        socklen_t sockInLen = sizeof(sockInClient);
-
-        auto headerSize = sizeof(Header);
-
         Header outHeader;
         outHeader.magic[0] = 'D';
-        outHeader.magic[1] = 'E';
-        outHeader.magic[2] = 'C';
-        outHeader.magic[3] = 'K';
+        outHeader.magic[1] = 'S';
+        outHeader.magic[2] = 'U';
+        outHeader.magic[3] = 'S';
         outHeader.version = 1001;
 
-        VersionData version;
-        version.version = 1001;
+        versionAnswer.header = outHeader;
+        versionAnswer.header.length = sizeof(versionAnswer.version) + 4;
+        versionAnswer.version = 1001;
 
-        SharedResponse sresponseDeck;
-        sresponseDeck.deviceModel = 2;
-        sresponseDeck.connection = 1;
-        sresponseDeck.mac1 = 0;
-        sresponseDeck.mac2 = 0;
-        sresponseDeck.battery = 0;
+        SharedResponse sresponse;
+        sresponse.deviceModel = 2;
+        sresponse.connection = 1;
+        sresponse.mac1 = 0;
+        sresponse.mac2 = 0;
+        sresponse.battery = 0;
+        sresponse.connected = 0;
 
-        SharedResponse sresponseOther;
-        sresponseOther = sresponseDeck;
-        sresponseOther.slotState = 0;
-        sresponseOther.deviceModel = 0;
-        sresponseOther.connection = 0;
-        sresponseOther.connected = 0;
+        infoDeckAnswer.header = outHeader;
+        infoDeckAnswer.header.eventType = INFO_TYPE;
+        infoDeckAnswer.header.length = sizeof(infoDeckAnswer.response) + 4;
+        infoDeckAnswer.response = sresponse;
+        infoDeckAnswer.response.slot = DECKSLOT;
 
-        InfoAnswer infoDeck;
-        infoDeck.response = sresponseDeck;
+        infoNoneAnswer = infoDeckAnswer;
+        infoNoneAnswer.response.deviceModel = 0;
+        infoNoneAnswer.response.connection = 0;
+        infoNoneAnswer.response.slotState = 0;
 
-        auto versionLen = sizeof(VersionData)-16;
+        dataAnswer.header = outHeader;
+        dataAnswer.header.eventType = DATA_TYPE;
+        dataAnswer.header.length = sizeof(dataAnswer) - 16;
+        dataAnswer.response = sresponse;
+        dataAnswer.response.slotState = 2;
+        dataAnswer.response.connected = 1;
+        dataAnswer.response.slot = DECKSLOT;
+        
+        char* dataAnswerPointer = reinterpret_cast<char*>(&dataAnswer.buttons1);
+        auto len = sizeof(DataEvent) - sizeof(Header) - sizeof(SharedResponse) - sizeof(MotionData);
+        for (int i = 0; i < len; i++)
+        {
+            // clear most data
+            dataAnswerPointer[i] = 0;
+        }
+    }
+
+    void Server::serverTask()
+    {
+        char buf[BUFLEN];
+        sockaddr_in sockInClient,sendSockInClient;
+        socklen_t sockInLen = sizeof(sockInClient);
+
+        auto headerSize = (ssize_t)sizeof(Header);
+
+        std::pair<uint16_t , void const*> outBuf;
+
+        std::unique_ptr<std::thread> sendThread;
 
         while(!stop)
         {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
             auto recvLen = recvfrom(socketFd,buf,BUFLEN,0,(sockaddr*) &sockInClient, &sockInLen);
             if(recvLen >= headerSize)
             {
                 Header & header = *reinterpret_cast<Header*>(buf);
-                outHeader.id = header.id;
-                outHeader.eventType = header.eventType;
-                
+
                 switch(header.eventType)
                 {
-                    case 0x100000:
-                        version.header = outHeader;
-                        version.header.length = versionLen;
-                        version.header.crc32 = 0;
-                        version.header.crc32 = crc32(reinterpret_cast<char*>(&version),sizeof(version));
-                        sendto(socketFd,&version,sizeof(version),0,(sockaddr*) &sockInClient, sockInLen);
+                    case VERSION_TYPE:
+                        outBuf = PrepareVersionAnswer(header.id);
+                        sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
                         break;
-                    case 0x100001:
-                        //sresponseDeck.slotState = motionSource.IsControllerConnected()?2:0;
+                    case INFO_TYPE:
+                        {
+                            InfoRequest & req = *reinterpret_cast<InfoRequest*>(buf+headerSize);
+                            for (int i = 0; i < req.portCnt; i++)
+                            {
+                                outBuf = PrepareInfoAnswer(header.id, req.slots[i]);
+                                sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
+                            }
+                        }
+                        break;
+                    case DATA_TYPE:
+                        if(sendThread.get() != nullptr 
+                           && (sockInClient.sin_addr.s_addr != sendSockInClient.sin_addr.s_addr
+                               || sockInClient.sin_port != sendSockInClient.sin_port))
+                        {
+                            stopSending = true;
+                            sendThread.get()->join();
+                            sendThread.reset();
+                        }
+                        if(sendThread.get() == nullptr)
+                        {
+                            stopSending = false;
+                            sendThread.reset(new std::thread(&Server::sendTask,this,sockInClient, header.id));
+                            sendSockInClient = sockInClient;
+                        }
                         break;
                 }
             }
         }
+        if(sendThread.get() != nullptr)
+        {
+            stopSending = true;
+            sendThread.get()->join();
+        }
     }
+
+    void Server::sendTask(sockaddr_in sockInClient, uint32_t id)
+    {
+        std::unique_ptr<std::thread> scan;
+        scan.reset(new std::thread(std::this_thread::sleep_for<int64_t,std::milli>,std::chrono::milliseconds(SCANTIME)));
+
+
+        std::pair<uint16_t , void const*> outBuf;
+        uint32_t packet = 0;
+
+        while(!stopSending)
+        {
+            scan.get()->join();
+            scan.reset(new std::thread(std::this_thread::sleep_for<int64_t,std::milli>,std::chrono::milliseconds(SCANTIME)));
+            outBuf = PrepareDataAnswer(id,packet++);
+            sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
+        }
+        scan.get()->join();
+    }
+
+
+    std::pair<uint16_t , void const*> Server::PrepareVersionAnswer(uint32_t id)
+    {
+        static const uint16_t len = sizeof(versionAnswer);
+
+        versionAnswer.header.id = id;
+        versionAnswer.header.crc32 = 0;
+        versionAnswer.header.crc32 = crc32(reinterpret_cast<unsigned char *>(&versionAnswer),len);
+            return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&versionAnswer));
+    }
+
+    std::pair<uint16_t , void const*> Server::PrepareInfoAnswer(uint32_t id, uint8_t slot)
+    {
+        static const uint16_t len = sizeof(infoNoneAnswer);
+
+        if(slot != DECKSLOT)
+        {
+            infoNoneAnswer.header.id = id;
+            infoNoneAnswer.response.slot = slot;
+            infoNoneAnswer.header.crc32 = 0;
+            infoNoneAnswer.header.crc32 = crc32(reinterpret_cast<unsigned char *>(&infoNoneAnswer),len);
+            return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&infoNoneAnswer));
+        }
+        
+        infoDeckAnswer.header.id = id;
+        infoDeckAnswer.response.slot = slot;
+        infoDeckAnswer.response.slotState = motionSource.IsControllerConnected()?2:0;
+        infoDeckAnswer.header.crc32 = 0;
+        infoDeckAnswer.header.crc32 = crc32(reinterpret_cast<unsigned char *>(&infoDeckAnswer),len);
+        return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&infoDeckAnswer));
+    }
+
+    std::pair<uint16_t , void const*> Server::PrepareDataAnswer(uint32_t id, uint32_t packet) 
+    {
+        static const uint16_t len = sizeof(dataAnswer);
+        
+        dataAnswer.header.id = id;
+        dataAnswer.packetNumber = packet;
+        dataAnswer.motion = motionSource.GetMotionDataNewFrame();
+        
+        dataAnswer.header.crc32 = 0;
+        dataAnswer.header.crc32 = crc32(reinterpret_cast<unsigned char *>(&dataAnswer),len);
+        return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&dataAnswer));
+
+    }
+
+
 }

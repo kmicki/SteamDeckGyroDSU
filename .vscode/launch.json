@@ -7,7 +7,7 @@
         "request": "launch",
         "program": "${workspaceFolder}/bin/sdgyrodsu",
         "args": [],
-        "stopAtEntry": true,
+        "stopAtEntry": false,
         "cwd": "${workspaceFolder}/bin",
         "environment": [],
         "externalConsole": false,
@@ -19,7 +19,7 @@
             "ignoreFailures": true
           }
         ],
-        "preLaunchTask": "g++ build active file",
+        "preLaunchTask": "Build",
         "miDebuggerPath": "/usr/bin/gdb"
       }
     ]

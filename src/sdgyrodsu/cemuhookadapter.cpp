@@ -3,7 +3,7 @@
 
 using namespace kmicki::cemuhook::protocol;
 
-#define SD_SCANTIME 4;
+#define SD_SCANTIME_US 4000;
 #define ACC_1G 16383;
 #define GYRO_1DEGPERSEC 16;
 
@@ -23,7 +23,10 @@ namespace kmicki::sdgyrodsu
         static const float acc1G = (float)ACC_1G;
         static const float gyro1dps = (float)GYRO_1DEGPERSEC;
 
-        data.timestamp = frame.Increment*SD_SCANTIME;
+        uint64_t timestamp = (uint64_t)frame.Increment*SD_SCANTIME_US;
+
+        data.timestampL = (uint32_t)(timestamp & 0xFFFFFFFF);
+        data.timestampH = (uint32_t)(timestamp >> 32);
         
         data.accX = -(float)frame.AccelAxisRightToLeft/acc1G;
         data.accY = -(float)frame.AccelAxisFrontToBack/acc1G;
@@ -45,7 +48,7 @@ namespace kmicki::sdgyrodsu
     MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
     {
         SetMotionData(GetSdFrame(reader.GetNewFrame(this)),data);
-        reader.UnlockFrame();
+        reader.UnlockFrame(this);
         return data;
     }
 

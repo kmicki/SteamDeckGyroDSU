@@ -6,6 +6,7 @@
 #include <thread>
 #include <fstream>
 #include <set>
+#include <mutex>
 
 namespace kmicki::hiddev 
 {
@@ -89,6 +90,8 @@ namespace kmicki::hiddev
         bool frameReadAlready;
         std::set<void *> clients;
         std::set<void *> clientLocks;
+
+        std::mutex lockMutex, clientsMutex;
     };
 
 }
