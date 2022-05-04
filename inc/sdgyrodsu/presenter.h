@@ -10,7 +10,7 @@ namespace kmicki::sdgyrodsu
     {
         public:
         static void Initialize();
-        static void Present(frame_t frame);
+        static void Present(SdHidFrame const& frame);
         static void Finish();
     };
 }

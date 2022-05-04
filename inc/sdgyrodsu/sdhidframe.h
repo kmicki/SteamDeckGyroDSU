@@ -75,6 +75,8 @@ namespace kmicki::sdgyrodsu
         int16_t RightStickTouchCoverage;
     };
 
+    SdHidFrame const& GetSdFrame(frame_t const& frame);
+
 }
 
 #endif
