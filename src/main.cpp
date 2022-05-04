@@ -3,6 +3,8 @@
 #include "sdhidframe.h"
 #include "presenter.h"
 #include "cemuhookprotocol.h"
+#include "cemuhookserver.h"
+#include "cemuhookadapter.h"
 #include <iostream>
 #include <future>
 
@@ -20,6 +22,7 @@ typedef HidDevReader::frame_t frame_t;
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::cemuhook::protocol;
+using namespace kmicki::cemuhook;
 
 static std::exception_ptr teptr = nullptr;
 
@@ -36,6 +39,11 @@ int main()
     std::cout << "Found hiddev" << hidno << std::endl;
     
     HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_MS);
+    CemuhookAdapter adapter(reader);
+
+    Server server(adapter);
+
+    std::cout << "Press any key to finish..." << std::endl;
 
     Presenter::Initialize();
 
@@ -43,7 +51,6 @@ int main()
 
     // Set up any key listener
     auto anyKeyListener = std::async(std::launch::async,pointerToPeek,&std::cin);
-
 
     while(anyKeyListener.wait_for(std::chrono::milliseconds(0)) == std::future_status::timeout) {
         auto const& frame = GetSdFrame(reader.GetNewFrame());

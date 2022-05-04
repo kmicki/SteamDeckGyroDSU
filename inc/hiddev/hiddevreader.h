@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 #include <fstream>
+#include <set>
 
 namespace kmicki::hiddev 
 {
@@ -38,13 +39,13 @@ namespace kmicki::hiddev
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
         // After finishing reading the frame, it is improtant to call UnlockFrame().
-        frame_t const& GetFrame();
+        frame_t const& GetFrame(void * client = 0);
 
         // Get current frame data.
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
         // Blocks if there was no new frame after last use of GetFrame or GetNewFrame
-        frame_t const& GetNewFrame();
+        frame_t const& GetNewFrame(void * client = 0);
 
         // Check if frame is currently being written to.
         // True means that GetFrame() will block until writing ends.
@@ -57,10 +58,10 @@ namespace kmicki::hiddev
 
         // Lock frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
-        void LockFrame();
+        void LockFrame(void * client = 0);
 
         // Unlock frame.
-        void UnlockFrame();
+        void UnlockFrame(void * client = 0);
 
         protected:
 
@@ -86,6 +87,8 @@ namespace kmicki::hiddev
         std::unique_ptr<std::ifstream> inputStream;
 
         bool frameReadAlready;
+        std::set<void *> clients;
+        std::set<void *> clientLocks;
     };
 
 }

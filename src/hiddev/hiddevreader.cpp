@@ -5,6 +5,7 @@
 #include <chrono>
 #include <future>
 #include <memory>
+#include <set>
 
 namespace kmicki::hiddev
 {
@@ -21,7 +22,8 @@ namespace kmicki::hiddev
         stopTask(false),
         scanPeriod(scanTime),
         inputStream(nullptr),
-        frameReadAlready(false)
+        frameReadAlready(false),
+        clients()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -44,17 +46,18 @@ namespace kmicki::hiddev
             readingTask.get()->join();
     }
 
-    HidDevReader::frame_t const& HidDevReader::GetFrame()
+    HidDevReader::frame_t const& HidDevReader::GetFrame(void * client)
     {
-        LockFrame();
-        frameReadAlready = true;
+        if(clients.find(client) == clients.end())
+            clients.insert(client);
+        LockFrame(client);
         return frame;
     }
 
-    HidDevReader::frame_t const& HidDevReader::GetNewFrame()
+    HidDevReader::frame_t const& HidDevReader::GetNewFrame(void * client)
     {
-        while(frameReadAlready) ;
-        return GetFrame();
+        while(clients.find(client) != clients.end()) ;
+        return GetFrame(client);
     }
 
     bool const& HidDevReader::IsFrameLockedForWriting() const
@@ -66,17 +69,26 @@ namespace kmicki::hiddev
         return readingLock;
     }
 
-    void HidDevReader::LockFrame() 
+    void HidDevReader::LockFrame(void* client)
     {
-        preReadingLock = true;
-        while(writingLock) ;
-        readingLock = true;
-        preReadingLock = false;
+        if(clientLocks.find(client) == clientLocks.end())
+            clientLocks.insert(client);
+        if(! preReadingLock && ! readingLock)
+        {
+            preReadingLock = true;
+            while(writingLock) ;
+            readingLock = true;
+            preReadingLock = false;
+        }
     }
 
-    void HidDevReader::UnlockFrame()
+    void HidDevReader::UnlockFrame(void * client)
     {
-        readingLock = false;
+        auto iter = clientLocks.find(client);
+        if(iter != clientLocks.end())
+            clientLocks.erase(iter);
+        if(clientLocks.size() == 0)
+            readingLock = false;
     }
 
     void HidDevReader::reconnectInput(std::ifstream & stream, std::string path)
@@ -95,6 +107,8 @@ namespace kmicki::hiddev
         }
         writingLock = false;
         frameReadAlready = false;
+
+        clients.clear();
     }
 
     void HidDevReader::executeReadingTask()

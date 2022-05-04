@@ -4,7 +4,7 @@
 using namespace kmicki::cemuhook::protocol;
 
 #define SD_SCANTIME 4;
-#define ACC_1G 16500;
+#define ACC_1G 16383;
 #define GYRO_1DEGPERSEC 16;
 
 namespace kmicki::sdgyrodsu
@@ -44,7 +44,7 @@ namespace kmicki::sdgyrodsu
 
     MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
     {
-        SetMotionData(GetSdFrame(reader.GetNewFrame()),data);
+        SetMotionData(GetSdFrame(reader.GetNewFrame(this)),data);
         reader.UnlockFrame();
         return data;
     }
