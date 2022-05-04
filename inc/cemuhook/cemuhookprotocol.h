@@ -22,6 +22,7 @@ namespace kmicki::cemuhook::protocol
 
     struct VersionData
     {
+        Header header;
         uint16_t version;
     };
 
@@ -32,9 +33,9 @@ namespace kmicki::cemuhook::protocol
         uint8_t deviceModel; // 0 - not applicable, 1 - no or partial gyro, 2 - full gyro, 3 - do not use
         uint8_t connection; // 0 - not applicable, 1 - USB, 2 - bluetooth
         uint32_t mac1; // unused - 0
-        uint16_t max2; // unused - 0
+        uint16_t mac2; // unused - 0
         uint8_t battery; // unused - 0
-        uint8_t connected; // 1 - connected
+        uint8_t connected; // 1 - connected, for info - 0
     };
 
     struct InfoRequest
@@ -46,7 +47,6 @@ namespace kmicki::cemuhook::protocol
     {
         Header header;
         SharedResponse response;
-        char end; // end of packet = 0x0
     };
 
     struct SubscribeRequest
