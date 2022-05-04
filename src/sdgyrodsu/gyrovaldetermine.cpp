@@ -26,14 +26,14 @@ namespace kmicki::sdgyrodsu
         if(timeStart == 0)
         {
             timeStart = frame.Increment;
-            accelStart = frame.AccelAxisFrontToBack;
+            accelStart = frame.AccelAxisTopToBottom;
             return;
         }        
 
         timeLast = frame.Increment;
-        accelLast = frame.AccelAxisFrontToBack;
+        accelLast = frame.AccelAxisTopToBottom;
 
-        data.push_back(frame.GyroAxisRightToLeft);
+        data.push_back(frame.GyroAxisFrontToBack);
     }
 
     long GyroValDetermine::GetDegPerSecond() const
