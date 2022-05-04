@@ -43,7 +43,10 @@ namespace kmicki::sdgyrodsu
         ;
     }
 
-    void CemuhookAdapter::StartFrameGrab() {}
+    void CemuhookAdapter::StartFrameGrab()
+    {
+        reader.Start();
+    }
 
     MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
     {
@@ -52,7 +55,10 @@ namespace kmicki::sdgyrodsu
         return data;
     }
 
-    void CemuhookAdapter::StopFrameGrab() {}
+    void CemuhookAdapter::StopFrameGrab()
+    {
+        reader.Stop();
+    }
 
     bool CemuhookAdapter::IsControllerConnected()
     {

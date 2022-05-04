@@ -10,6 +10,7 @@ using namespace kmicki::sdgyrodsu;
 #define BUFLEN 100
 #define SCANTIME 0
 #define DECKSLOT 0
+#define SENDTIMEOUT_X 5
 
 #define VERSION_TYPE 0x100000
 #define INFO_TYPE 0x100001
@@ -143,12 +144,15 @@ namespace kmicki::cemuhook
 
         std::unique_ptr<std::thread> sendThread;
 
+        int sendTimeout = 0;
+
         while(!stop)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
             auto recvLen = recvfrom(socketFd,buf,BUFLEN,0,(sockaddr*) &sockInClient, &sockInLen);
             if(recvLen >= headerSize)
             {
+                sendTimeout = 0;
                 Header & header = *reinterpret_cast<Header*>(buf);
 
                 switch(header.eventType)
@@ -185,6 +189,22 @@ namespace kmicki::cemuhook
                         break;
                 }
             }
+            else 
+            {
+                ++sendTimeout;
+                if(sendTimeout > SENDTIMEOUT_X)
+                {       
+                    if(sendThread.get() != nullptr)
+                    {
+                        stopSending = true;
+                        sendThread.get()->join();
+                        sendThread.reset();
+                    }
+                    sendTimeout = 0;
+                }
+                    
+                    
+            }
         }
         if(sendThread.get() != nullptr)
         {
@@ -195,6 +215,8 @@ namespace kmicki::cemuhook
 
     void Server::sendTask(sockaddr_in sockInClient, uint32_t id)
     {
+        motionSource.StartFrameGrab();
+
         std::unique_ptr<std::thread> scan;
         scan.reset(new std::thread(std::this_thread::sleep_for<int64_t,std::milli>,std::chrono::milliseconds(SCANTIME)));
 
@@ -210,6 +232,8 @@ namespace kmicki::cemuhook
             sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
         }
         scan.get()->join();
+
+        motionSource.StopFrameGrab();
     }
 
 

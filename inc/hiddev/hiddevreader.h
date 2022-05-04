@@ -64,6 +64,10 @@ namespace kmicki::hiddev
         // Unlock frame.
         void UnlockFrame(void * client = 0);
 
+        void Start();
+
+        void Stop();
+
         protected:
 
         frame_t frame;

@@ -34,7 +34,11 @@ namespace kmicki::hiddev
         std::stringstream inputFilePathFormatter;
         inputFilePathFormatter << "/dev/usb/hiddev" << hidNo;
         inputFilePath = inputFilePathFormatter.str();
+    }
 
+    void HidDevReader::Start()
+    {
+        stopTask = false;
         inputStream.reset(new std::ifstream(inputFilePath,std::ios_base::binary));
 
         if(inputStream.get()->fail())
@@ -42,12 +46,17 @@ namespace kmicki::hiddev
 
         readingTask.reset(new std::thread(&HidDevReader::executeReadingTask,std::ref(*this)));
     }
-
-    HidDevReader::~HidDevReader()
+    
+    void HidDevReader::Stop()
     {
         stopTask = true;
         if(readingTask.get() != nullptr)
             readingTask.get()->join();
+    }
+
+    HidDevReader::~HidDevReader()
+    {
+        Stop();
     }
 
     HidDevReader::frame_t const& HidDevReader::GetFrame(void * client)
