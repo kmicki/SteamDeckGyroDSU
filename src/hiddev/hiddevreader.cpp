@@ -1,5 +1,6 @@
 #include "hiddevreader.h"
 
+#include <iostream>
 #include <stdexcept>
 #include <sstream>
 #include <chrono>
@@ -35,11 +36,14 @@ namespace kmicki::hiddev
         std::stringstream inputFilePathFormatter;
         inputFilePathFormatter << "/dev/usb/hiddev" << hidNo;
         inputFilePath = inputFilePathFormatter.str();
+
+        std::cout << "HidDevReader: Initialized. Waiting for start of frame grab." << std::endl;
     }
 
     void HidDevReader::Start()
     {
         startStopMutex.lock();
+        std::cout << "HidDevReader: Attempting to start frame grab." << std::endl;
         if(readingTask.get() != nullptr)
             return;
         stopTask = false;
@@ -50,11 +54,13 @@ namespace kmicki::hiddev
 
         readingTask.reset(new std::thread(&HidDevReader::executeReadingTask,std::ref(*this)));
         startStopMutex.unlock();
+        std::cout << "HidDevReader: Started frame grab." << std::endl;
     }
     
     void HidDevReader::Stop()
     {
         startStopMutex.lock();
+        std::cout << "HidDevReader: Attempting to stop frame grab." << std::endl;
         stopTask = true;
         if(readingTask.get() != nullptr)
         {
@@ -63,6 +69,7 @@ namespace kmicki::hiddev
         }
         stopTask = false;
         startStopMutex.unlock();
+        std::cout << "HidDevReader: Stopped frame grab." << std::endl;
     }
 
     HidDevReader::~HidDevReader()

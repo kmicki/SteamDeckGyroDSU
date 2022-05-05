@@ -50,8 +50,11 @@ int main()
 
     Server server(adapter);
 
-    std::cout << "Press any key to finish..." << std::endl;
-    std::cin.get();
+    //std::cout << "Press any key to finish..." << std::endl;
+    //std::cin.get();
+
+    while(true) std::this_thread::sleep_for(std::chrono::seconds(1));
+
     //Presenter::Initialize();
 
     // Set up any key listener

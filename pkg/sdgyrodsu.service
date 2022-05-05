@@ -1,0 +1,13 @@
+[Unit]
+Description=Steam Deck Gyro DSU Server
+After=sockets.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=%h/sdgyrodsu/sdgyrodsu
+
+[Install]
+WantedBy=default.target
