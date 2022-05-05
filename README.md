@@ -96,9 +96,3 @@ Then run those commands from repository directory:
 You can use the server without installing a user service. Granting permissions is still necessary. Without granting permissions it will work only when run as root.
 
     ./bin/sdgyrodsu
-
-## TODO
-
-- optimize CPU usage, the program uses 3% of CPU when a client (cemuhook) is connected
-- prepare a package for pacman so that building the application (and disabling readonly filesystem) won't be necessary.
-- prepare a plugin for gaming mode to enable/disable deamon
