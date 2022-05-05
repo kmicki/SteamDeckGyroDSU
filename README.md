@@ -11,7 +11,7 @@ To build the server and install it as a service for the first time switch to des
     
     ./install.sh
     
-If you haven't used **sudo** before, first run passwd to set a password.
+If you haven't used **sudo** before, first run `passwd` to set a password.
     
 After that, restart the system and the DSU server should be active.
 To disable the server, use command:
