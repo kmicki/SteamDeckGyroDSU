@@ -7,6 +7,7 @@
 #include <fstream>
 #include <set>
 #include <mutex>
+#include <condition_variable>
 
 namespace kmicki::hiddev 
 {
@@ -77,21 +78,30 @@ namespace kmicki::hiddev
         bool readingLock;
         bool writingLock;
 
-        std::chrono::milliseconds scanPeriod;
+        std::chrono::microseconds scanPeriod;
 
         bool stopTask; // stop reading task
+        bool stopRead;
+        bool stopMetro;
 
         std::unique_ptr<std::thread> readingTask;
 
         // Method called in a reading task on a separate thread.
         void executeReadingTask();
+        void readTask(std::vector<char>** buf);
+        void Metronome();
+
+        std::mutex m;
+        std::condition_variable v;
+
+        int enter,exit;
+        bool tick,rdy,wait;
 
         static void reconnectInput(std::ifstream & stream, std::string path);
         void processData(std::vector<char> const& bufIn);        
 
         std::unique_ptr<std::ifstream> inputStream;
 
-        bool frameReadAlready;
         std::set<void *> clients;
         std::set<void *> clientLocks;
 

@@ -12,24 +12,19 @@ namespace kmicki::hiddev
 {
     #define INPUT_RECORD_LEN 8
     #define BYTEPOS_INPUT 4
-    #define INPUT_FRAME_TIMEOUT_MS 5
     #define SCAN_DIVIDER 1
+    #define FAIL_COUNT 4
 
 
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
     :   frameLen(_frameLen),
         frame(_frameLen),
-        preReadingLock(false),
-        readingLock(false),
-        writingLock(false),
-        stopTask(false),
+        preReadingLock(false),readingLock(false),writingLock(false),
+        stopTask(false),stopMetro(false),stopRead(false),
         scanPeriod(scanTime),
         inputStream(nullptr),
-        frameReadAlready(false),
-        clients(),
-        lockMutex(),
-        clientsMutex(),
-        startStopMutex()
+        clients(),clientLocks(),
+        lockMutex(),clientsMutex(),startStopMutex()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -89,7 +84,7 @@ namespace kmicki::hiddev
 
     HidDevReader::frame_t const& HidDevReader::GetNewFrame(void * client)
     {
-        while(clients.find(client) != clients.end()) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        while(clients.find(client) != clients.end()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         return GetFrame(client);
     }
 
@@ -144,60 +139,99 @@ namespace kmicki::hiddev
             frame[i] = bufIn[j];
         }
         writingLock = false;
-        frameReadAlready = false;
         
         clients.clear();
         clientsMutex.unlock();
     }
 
+    void HidDevReader::readTask(std::vector<char>** buf)
+    {
+        while(!stopRead)
+        {
+            tick=false;
+            ++enter;
+            inputStream->read((*buf)->data(),(*buf)->size());
+            if(stopRead)
+                break;
+            exit=enter;
+            rdy = true;
+            if(!tick || rdy)
+            {
+                std::unique_lock<std::mutex> lock(m);
+                wait=true;
+                v.wait(lock);
+                wait=false;
+            }
+        }
+    }
+
+    void HidDevReader::Metronome()
+    {
+        while(!stopMetro)
+        {
+            std::this_thread::sleep_for(scanPeriod);
+            {
+                std::unique_lock<std::mutex> lock(m);
+                tick = true;
+                if(!rdy && wait)
+                    v.notify_one();
+            }
+        }
+    }
+
     void HidDevReader::executeReadingTask()
     {
         auto& input = static_cast<std::ifstream&>(*inputStream);
-        std::unique_ptr<std::future<void>> scan = nullptr;
-        std::unique_ptr<std::future<void>> process = nullptr;
         std::vector<char> buf1(INPUT_RECORD_LEN*frameLen);
         std::vector<char> buf2(INPUT_RECORD_LEN*frameLen);
         std::vector<char>* buf = &buf1; // buffer swapper
 
-        int scanDivider = 0;
+        enter=exit=0;
+        tick=rdy=wait=false;
+        int fail = 0;
+        int lastEnter = 0;
+
+        std::unique_ptr<std::thread> readThread(new std::thread(&HidDevReader::readTask,this,&buf));
+        auto handle = readThread->native_handle();
+        std::thread metronome(&HidDevReader::Metronome,this);
+
 
         while(!stopTask)
         {
-            ++scanDivider;
+            std::this_thread::sleep_for(std::chrono::microseconds(500));
 
-            if(scan.get() != nullptr)
-                scan.get()->wait();
-            scan.reset(new std::future<void>(std::async(std::launch::async,std::this_thread::sleep_for<int64_t,std::milli>,scanPeriod)));
-
-            if(scanDivider < SCAN_DIVIDER)
+            if(!rdy)
             {
-                std::thread ignoreThread(static_cast<std::istream& (std::istream::*)(std::streamsize)>(&std::ifstream::ignore),&input,buf->size());
-                auto ignoreHandle = ignoreThread.native_handle();
-                auto ignoreTimeout=std::async(std::launch::async, &std::thread::join, &ignoreThread);
-                if (ignoreTimeout.wait_for(std::chrono::milliseconds(INPUT_FRAME_TIMEOUT_MS)) == std::future_status::timeout) {
-                    pthread_cancel(ignoreHandle);
-                    ignoreTimeout.wait();
-                    reconnectInput(input,inputFilePath);
+                if(enter!=exit)
+                {
+                    if(enter != lastEnter) 
+                    {
+                        fail = 0;
+                        lastEnter = enter;
+                    }
+                    ++fail;
+                    if(fail > 10)
+                    {
+                        stopRead = true;
+                        {
+                            std::unique_lock<std::mutex> lock(m);
+                            if(wait)
+                                v.notify_one();
+                        }
+                        pthread_cancel(handle);
+                        readThread->join();
+                        stopRead = false;
+                        tick=true;
+                        readThread.reset(new std::thread(&HidDevReader::readTask,this,&buf));
+                        handle = readThread->native_handle();
+                        fail=0;
+                    }
                 }
                 continue;
             }
-            scanDivider = 0;
-
-            // Reading from hiddev is done in a separate thread.
-            // Then future is created that waits for the reading to finish (by executing join).
-            // It is necessary because if 2 consecutive reads are done too quickly (no new frame ready)
-            // then ifstream::read is blocked indefinitely.
-            std::thread readThread(&std::ifstream::read,&input,buf->data(),buf->size());
-            auto handle = readThread.native_handle();   // this handle is needed to cancel the reading thread in case of block,
-                                                        // it has to be retrieved and stored before calling join on the thread.
-            auto readTimeout=std::async(std::launch::async, &std::thread::join, &readThread);
-            if (readTimeout.wait_for(std::chrono::milliseconds(INPUT_FRAME_TIMEOUT_MS)) == std::future_status::timeout) {
-                // If reading didn't finish in defined time, cancel reading thread and repeat reading in next iteration
-                pthread_cancel(handle);
-                readTimeout.wait();
-                reconnectInput(input,inputFilePath);
-            }
-            else if(input.fail() || *(reinterpret_cast<unsigned int*>(buf->data())) != 0xFFFF0002)
+            fail=0;
+            
+            if(input.fail() || *(reinterpret_cast<unsigned int*>(buf->data())) != 0xFFFF0002)
             {
                 // Failed to read a frame
                 // or start in the middle of the input frame
@@ -205,23 +239,35 @@ namespace kmicki::hiddev
             }
             else {
                 // Start processing data in a separate thread unless previous processing has not finished
-                if( !readingLock && !preReadingLock 
-                    && 
-                    (process.get() == nullptr || process.get()->wait_for(std::chrono::milliseconds(0)) == std::future_status::ready))
+                if( !readingLock && !preReadingLock )
                 {
                     writingLock = true;
-                    process.reset(new std::future<void>(std::async(std::launch::async, &HidDevReader::processData, this, std::cref(*buf))));
-
+                    auto bufProcess = buf;
                     // swap buffers
                     if(buf == &buf1)
                         buf = &buf2;
                     else
                         buf = &buf1;
+                    {
+                        std::unique_lock<std::mutex> lock(m);
+                        rdy = false;
+                        if(tick && wait)
+                            v.notify_one();
+                    }
+                    
+                    processData(*buf);
                 }
             }
         }
-        if(process.get() != nullptr)
-            process.get()->wait();
+        stopRead = stopMetro = true;
+        {
+            std::unique_lock<std::mutex> lock(m);
+            if(wait)
+                v.notify_one();
+        }
+        pthread_cancel(handle);
+        readThread->join();
+        metronome.join();
         input.close();
     }
 }
