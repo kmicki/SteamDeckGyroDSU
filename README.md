@@ -31,6 +31,8 @@ The code runs DSU server that can be used with Cemu (cemuhook). To use it, modif
 
 The program is for Steam Deck specifically so instructions are for building on Steam Deck.
 
+Steps below (reinstall dependencies+build+install as a service) are included in install.sh script. Follow the steps if you don't want to use the script.
+
 ### Dependencies
 
 Repository depends on libraries that are already installed in the Steam Deck's system. Unfortunately, even though the libraries are there, the header files are not, so they have to be reinstalled.
@@ -52,15 +54,11 @@ To do that:
     sudo pacman -S --noconfirm ncurses
     sudo steamos-readonly enable
     
-As you see above, this requires disabling read only filesystem. 
-
-Alternatively you can use overlayfs, see [SteamDeckPersistentRootFs](https://github.com/Chloe-ko/SteamDeckPersistentRootFs).
-
-Be aware: when overlayfs is enabled Steam will fail to apply updates. When update is available, follow uninstallation instructions in a mentioned repository.
+As you see above, this requires disabling read only filesystem. It is necessary only to reinstall those packages. Building/isntalling/running a server is possible with read-only filesystem enabled.
 
 ### Build
 
-Use vscode task or just build using following commands in a project's directory:
+Build using following commands in a project's directory:
 
     mkdir -p bin
     g++ $(find inc -type d -printf '-I %p\n') -g $(find src -type f -iregex '.*\.cpp' -printf '%p\n') -pthread -lncurses -o bin/sdgyrodsu
