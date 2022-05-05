@@ -76,7 +76,7 @@ If you don't want to give superuser permissions to the application, it is necess
 
 Use following commands to create a new user group and add current user to the group and then grant that group permission to read from hiddev file of Steam Deck controls (run those in a repository's main directory):
 
-    sudo group add usbaccess
+    sudo groupadd usbaccess
     sudo gpasswd -a $USER usbaccess
     sudo cp pkg/51-deck-controls.rules /etc/udev/rules.d/
     
