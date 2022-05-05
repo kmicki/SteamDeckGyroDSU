@@ -14,6 +14,7 @@ To build the server and install it as a service for the first time switch to des
 If you haven't used **sudo** before, first run `passwd` to set a password.
     
 After that, restart the system and the DSU server should be active.
+
 To disable the server, use command:
 
     systemctl --user disable sdgyrodsu.service
@@ -84,7 +85,9 @@ Use following commands to create a new user group and add current user to the gr
 ### Install user service
 
 If you want to run server automatically when Steam Deck is ON, install it as a service.
+
 First prepare permissions as described in a previous section (service will be non-root).
+
 Then run those commands from repository directory:
 
     mkdir -p $HOME/sdgyrodsu
