@@ -65,8 +65,19 @@ Then restart the system and you can use the program without **sudo**:
 
     ./bin/sdgyrodsu
 
+### Install as a user service
+
+If you want to run server automatically when Steam Deck is ON, install it as a service.
+First prepare permissions as described in a previous section (service will be non-root).
+Then run those commands from repository directory:
+
+    mkdir -p $HOME/sdgyrodsu
+    cp bin/sdgyrodsu $HOME/sdgyrodsu/
+    cp pkg/sdgyrodsu.service $HOME/.config/systemd/user/
+    systemctl --user enable --now sdgyrodsu.service
+
 ## TODO
 
-- prepare a daemon configuration
+- optimize CPU usage, the program uses 3% of CPU when a client (cemuhook) is connected
 - prepare a package for pacman so that building the application (and disabling readonly filesystem) won't be necessary.
 - prepare a plugin for gaming mode to enable/disable deamon
