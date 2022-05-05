@@ -73,6 +73,8 @@ namespace kmicki::hiddev
 
         bool IsStarted();
 
+        bool IsStopping();
+
         protected:
 
         frame_t frame;

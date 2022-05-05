@@ -70,7 +70,12 @@ namespace kmicki::hiddev
 
     bool HidDevReader::IsStarted()
     {
-        return readingTask.get() != nullptr;
+        return readingTask.get() != nullptr && !stopTask;
+    }
+
+    bool HidDevReader::IsStopping()
+    {
+        return readingTask.get() != nullptr && stopTask;
     }
 
     HidDevReader::~HidDevReader()
@@ -277,6 +282,7 @@ namespace kmicki::hiddev
                             if(wait)
                                 v.notify_one();
                         }
+                        std::this_thread::sleep_for(std::chrono::microseconds(300));
                         pthread_cancel(handle);
                         readThread->join();
                         stopRead = false;
@@ -325,6 +331,7 @@ namespace kmicki::hiddev
             if(wait)
                 v.notify_one();
         }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         pthread_cancel(handle);
         readThread->join();
         metronome.join();

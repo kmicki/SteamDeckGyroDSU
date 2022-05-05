@@ -50,15 +50,25 @@ int main()
     Server server(adapter);
 
     uint32_t lastInc = 0;
+    int stopping = 0;
 
     while(true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(reader.Frame().data()+4);
         if(lastInc > 0 && newInc == lastInc)
         {
-            std::cout << "Framegrab is stuck. Aborting." << std::endl;
-            std::abort();
+            if(reader.IsStarted() || stopping > 5)
+            {
+                std::cout << "Framegrab is stuck. Aborting." << std::endl;
+                std::abort();
+            }
+            if(reader.IsStopping())
+                ++stopping;
         }
+        if(!reader.IsStarted() && !reader.IsStopping())
+            lastInc = 0;
+        if(!reader.IsStopping())
+            stopping = 0;
     }
 
     return 0;

@@ -11,7 +11,7 @@ using namespace kmicki::sdgyrodsu;
 #define BUFLEN 100
 #define SCANTIME 0
 #define DECKSLOT 0
-#define SENDTIMEOUT_X 5
+#define SENDTIMEOUT_X 3
 
 #define VERSION_TYPE 0x100000
 #define INFO_TYPE 0x100001
