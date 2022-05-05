@@ -27,7 +27,8 @@ namespace kmicki::hiddev
         frameReadAlready(false),
         clients(),
         lockMutex(),
-        clientsMutex()
+        clientsMutex(),
+        startStopMutex()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -38,6 +39,9 @@ namespace kmicki::hiddev
 
     void HidDevReader::Start()
     {
+        startStopMutex.lock();
+        if(readingTask.get() != nullptr)
+            return;
         stopTask = false;
         inputStream.reset(new std::ifstream(inputFilePath,std::ios_base::binary));
 
@@ -45,13 +49,20 @@ namespace kmicki::hiddev
             throw std::runtime_error("Failed to open hiddev file. Are priviliges granted?");
 
         readingTask.reset(new std::thread(&HidDevReader::executeReadingTask,std::ref(*this)));
+        startStopMutex.unlock();
     }
     
     void HidDevReader::Stop()
     {
+        startStopMutex.lock();
         stopTask = true;
         if(readingTask.get() != nullptr)
+        {
             readingTask.get()->join();
+            readingTask.reset();
+        }
+        stopTask = false;
+        startStopMutex.unlock();
     }
 
     HidDevReader::~HidDevReader()

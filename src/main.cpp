@@ -25,6 +25,14 @@ using namespace kmicki::cemuhook;
 
 static std::exception_ptr teptr = nullptr;
 
+static bool stop = false;
+
+void WaitForKey()
+{
+    std::cin.get();
+    stop = true;
+}
+
 int main()
 {
     // Steam Deck controls: usb device VID: 28de, PID: 1205
@@ -43,24 +51,19 @@ int main()
     Server server(adapter);
 
     std::cout << "Press any key to finish..." << std::endl;
-
-    Presenter::Initialize();
-
-    std::basic_istream<char, std::char_traits<char>>::int_type (std::istream::*pointerToPeek)() = &std::istream::peek;
+    std::cin.get();
+    //Presenter::Initialize();
 
     // Set up any key listener
-    auto anyKeyListener = std::async(std::launch::async,pointerToPeek,&std::cin);
+    //std::thread anyKeyListener(&WaitForKey);
 
-    //while(anyKeyListener.wait_for(std::chrono::milliseconds(0)) == std::future_status::timeout) {
-        //reader.GetNewFrame();
-        //auto const& frame = GetSdFrame(reader.GetNewFrame());
-        //Presenter::Present(frame);
-        //reader.UnlockFrame();
+    //while(!stop) {
+    //    auto const& frame = GetSdFrame(reader.GetNewFrame());
+    //    Presenter::Present(frame);
+    //    reader.UnlockFrame();
     //}
 
-    anyKeyListener.wait();
-
-    Presenter::Finish();
+    //Presenter::Finish();
 
     return 0;
 }

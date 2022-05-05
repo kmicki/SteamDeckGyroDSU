@@ -95,7 +95,7 @@ namespace kmicki::hiddev
         std::set<void *> clients;
         std::set<void *> clientLocks;
 
-        std::mutex lockMutex, clientsMutex;
+        std::mutex lockMutex, clientsMutex, startStopMutex;
     };
 
 }
