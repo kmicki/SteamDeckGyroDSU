@@ -43,6 +43,8 @@ namespace kmicki::hiddev
         // After finishing reading the frame, it is improtant to call UnlockFrame().
         frame_t const& GetFrame(void * client = 0);
 
+        frame_t const& Frame();
+
         // Get current frame data.
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
@@ -68,6 +70,8 @@ namespace kmicki::hiddev
         void Start();
 
         void Stop();
+
+        bool IsStarted();
 
         protected:
 
@@ -106,6 +110,14 @@ namespace kmicki::hiddev
         std::set<void *> clientLocks;
 
         std::mutex lockMutex, clientsMutex, startStopMutex;
+
+        void LossAnalysis();
+
+        int lossPeriod;
+        bool lossAnalysis;
+        uint32_t lastInc;
+        bool smallLossEncountered;
+        std::chrono::microseconds bigLossDuration;
     };
 
 }

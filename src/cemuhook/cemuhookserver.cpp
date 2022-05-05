@@ -225,9 +225,6 @@ namespace kmicki::cemuhook
         std::cout << "Cemuhook Server: Initiaiting frame grab start." << std::endl;
         motionSource.StartFrameGrab();
 
-        std::unique_ptr<std::thread> scan;
-        scan.reset(new std::thread(std::this_thread::sleep_for<int64_t,std::milli>,std::chrono::milliseconds(SCANTIME)));
-
 
         std::pair<uint16_t , void const*> outBuf;
         uint32_t packet = 0;
@@ -236,13 +233,9 @@ namespace kmicki::cemuhook
 
         while(!stopSending)
         {
-            scan.get()->join();
-            scan.reset(new std::thread(std::this_thread::sleep_for<int64_t,std::milli>,std::chrono::milliseconds(SCANTIME)));
             outBuf = PrepareDataAnswer(id,packet++);
             sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
         }
-        
-        scan.get()->join();
 
         std::cout << "Cemuhook Server: Initiating frame grab stop." << std::endl;
 

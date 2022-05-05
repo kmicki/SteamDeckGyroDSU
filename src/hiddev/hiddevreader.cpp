@@ -12,8 +12,8 @@ namespace kmicki::hiddev
 {
     #define INPUT_RECORD_LEN 8
     #define BYTEPOS_INPUT 4
-    #define SCAN_DIVIDER 1
-    #define FAIL_COUNT 4
+    #define FAIL_COUNT 10
+    #define MAX_LOSS_PERIOD 10000
 
 
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
@@ -32,6 +32,7 @@ namespace kmicki::hiddev
         std::stringstream inputFilePathFormatter;
         inputFilePathFormatter << "/dev/usb/hiddev" << hidNo;
         inputFilePath = inputFilePathFormatter.str();
+        bigLossDuration = std::chrono::microseconds(4000);
 
         std::cout << "HidDevReader: Initialized. Waiting for start of frame grab." << std::endl;
     }
@@ -63,9 +64,13 @@ namespace kmicki::hiddev
             readingTask.get()->join();
             readingTask.reset();
         }
-        stopTask = false;
         startStopMutex.unlock();
         std::cout << "HidDevReader: Stopped frame grab." << std::endl;
+    }
+
+    bool HidDevReader::IsStarted()
+    {
+        return readingTask.get() != nullptr;
     }
 
     HidDevReader::~HidDevReader()
@@ -83,9 +88,14 @@ namespace kmicki::hiddev
         return frame;
     }
 
+    HidDevReader::frame_t const& HidDevReader::Frame()
+    {
+        return frame;
+    }
+
     HidDevReader::frame_t const& HidDevReader::GetNewFrame(void * client)
     {
-        while(clients.find(client) != clients.end()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        while(clients.find(client) != clients.end() && !stopTask) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         return GetFrame(client);
     }
 
@@ -180,6 +190,46 @@ namespace kmicki::hiddev
         }
     }
 
+    void HidDevReader::LossAnalysis()
+    {
+        uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(frame.data()+4);
+        uint32_t diff;
+        if(lossAnalysis)
+        {
+            if(++lossPeriod > MAX_LOSS_PERIOD)
+            {
+                lossPeriod = 0;
+                lossAnalysis = false;
+                if(bigLossDuration.count() < 4000)
+                    ++bigLossDuration;
+                    
+            }
+        }
+        if(lastInc > 0 && (diff = newInc - lastInc) > 1 && diff < 1000)
+        {
+            std::cout << "Lost frames : " << diff-1 << " after " << lossPeriod << " frames" << std::endl;
+            if(diff > 25)
+            {
+                if(smallLossEncountered || !lossAnalysis)
+                    --scanPeriod;
+                else
+                    scanPeriod -= std::chrono::microseconds(std::max(1,(6000-lossPeriod)/100));
+                std::cout << "Changed scan period to : " << scanPeriod.count() << " us" << std::endl;
+                lossAnalysis = true;
+            }
+            else if(!lossAnalysis)
+                lossAnalysis = true;
+            else
+            {
+                smallLossEncountered = true;
+                ++scanPeriod;
+                std::cout << "Changed scan period to : " << scanPeriod.count() << " us" << std::endl;
+            }
+            lossPeriod = 0;
+        }
+        lastInc = newInc;
+    }
+
     void HidDevReader::executeReadingTask()
     {
         auto& input = static_cast<std::ifstream&>(*inputStream);
@@ -198,7 +248,12 @@ namespace kmicki::hiddev
         auto handle = readThread->native_handle();
         std::thread metronome(&HidDevReader::Metronome,this);
 
+        lossPeriod = 0;
+        lossAnalysis = false;
+        lastInc = 0;
+        smallLossEncountered = false;
 
+        std::cout << "Scan period initial : " << scanPeriod.count() << " us" << std::endl;
 
         while(!stopTask)
         {
@@ -214,7 +269,7 @@ namespace kmicki::hiddev
                         lastEnter = enter;
                     }
                     ++fail;
-                    if(fail > 10)
+                    if(fail > FAIL_COUNT)
                     {
                         stopRead = true;
                         {
@@ -260,6 +315,7 @@ namespace kmicki::hiddev
                     }
                     
                     processData(*buf);
+                    LossAnalysis();
                 }
             }
         }
