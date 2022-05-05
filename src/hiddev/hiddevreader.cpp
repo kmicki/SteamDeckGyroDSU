@@ -24,7 +24,8 @@ namespace kmicki::hiddev
         scanPeriod(scanTime),
         inputStream(nullptr),
         clients(),clientLocks(),
-        lockMutex(),clientsMutex(),startStopMutex()
+        lockMutex(),clientsMutex(),startStopMutex(),
+        v(),m()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -191,9 +192,12 @@ namespace kmicki::hiddev
         int fail = 0;
         int lastEnter = 0;
 
+        stopRead = stopMetro = false;
+
         std::unique_ptr<std::thread> readThread(new std::thread(&HidDevReader::readTask,this,&buf));
         auto handle = readThread->native_handle();
         std::thread metronome(&HidDevReader::Metronome,this);
+
 
 
         while(!stopTask)

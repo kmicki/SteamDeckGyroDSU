@@ -47,26 +47,9 @@ int main()
     
     HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_US);
     CemuhookAdapter adapter(reader);
-
     Server server(adapter);
 
-    //std::cout << "Press any key to finish..." << std::endl;
-    //std::cin.get();
-
     while(true) std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    //Presenter::Initialize();
-
-    // Set up any key listener
-    //std::thread anyKeyListener(&WaitForKey);
-
-    //while(!stop) {
-    //    auto const& frame = GetSdFrame(reader.GetNewFrame());
-    //    Presenter::Present(frame);
-    //    reader.UnlockFrame();
-    //}
-
-    //Presenter::Finish();
 
     return 0;
 }
