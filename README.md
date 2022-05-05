@@ -1,6 +1,44 @@
 # SteamDeckGyroDSU
 DSU (cemuhook protocol) server for motion data.
 
+## Quick build and install instructions
+
+To build the server and install it as a service for the first time switch to desktop mode, open terminal and enter following commands in order:
+
+    cd
+    git clone https://github.com/kmicki/SteamDeckGyroDSU.git
+    cd SteamDeckGyroDSU
+    
+    sudo steamos-readonly disable
+    sudo pacman-key --init
+    sudo pacman-key --populate
+    sudo pacman -S --noconfirm gcc
+    sudo pacman -S --noconfirm glibc
+    sudo pacman -S --noconfirm linux-api-headers
+    sudo pacman -S --noconfirm ncurses
+    sudo steamos-readonly enable
+    
+    mkdir -p bin
+    g++ $(find inc -type d -printf '-I %p\n') -g $(find src -type f -iregex '.*\.cpp' -printf '%p\n') -pthread -lncurses -o bin/sdgyrodsu
+    
+    sudo group add usbaccess
+    sudo gpasswd -a $USER usbaccess
+    sudo cp pkg/51-deck-controls.rules /etc/udev/rules.d/
+
+    mkdir -p $HOME/sdgyrodsu
+    cp bin/sdgyrodsu $HOME/sdgyrodsu/
+    cp pkg/sdgyrodsu.service $HOME/.config/systemd/user/
+    systemctl --user enable sdgyrodsu.service
+    
+After that, restart the system and the DSU server should be active.
+To disable the server, use command:
+
+    systemctl --user disable sdgyrodsu.service
+    
+To enable it again:
+
+    systemctl --user disable --now sdgyrodsu.service
+
 ## Current status
 
 The code runs DSU server that can be used with Cemu (cemuhook). To use it, modify cemuhook.ini with IP address of the Deck (set it in \[Input\] section as _serverIP_).
