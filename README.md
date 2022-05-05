@@ -32,7 +32,7 @@ The code runs DSU server that can be used with Cemu (cemuhook). To use it, modif
 
 The program is for Steam Deck specifically so instructions are for building on Steam Deck.
 
-Steps below (reinstall dependencies+build+install as a service) are included in install.sh script. Follow the steps if you don't want to use the script.
+Steps below (reinstall dependencies+build+grant permissions+install as a service) are included in install.sh script. Follow the steps if you don't want to use the script.
 
 ### Dependencies
 
@@ -55,7 +55,7 @@ To do that:
     sudo pacman -S --noconfirm ncurses
     sudo steamos-readonly enable
     
-As you see above, this requires disabling read only filesystem. It is necessary only to reinstall those packages. Building/isntalling/running a server is possible with read-only filesystem enabled.
+As you see above, this requires disabling read only filesystem. It is necessary only to reinstall those packages. Building/installing/running a server is possible with read-only filesystem enabled.
 
 ### Build
 
