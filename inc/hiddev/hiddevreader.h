@@ -77,7 +77,7 @@ namespace kmicki::hiddev
         bool readingLock;
         bool writingLock;
 
-        std::chrono::milliseconds scanPeriod;
+        std::chrono::microseconds scanPeriod;
 
         bool stopTask; // stop reading task
 

@@ -12,7 +12,7 @@ namespace kmicki::hiddev
 {
     #define INPUT_RECORD_LEN 8
     #define BYTEPOS_INPUT 4
-    #define INPUT_FRAME_TIMEOUT_MS 5
+    #define INPUT_FRAME_TIMEOUT_MS 1
     #define SCAN_DIVIDER 1
 
 
@@ -160,14 +160,19 @@ namespace kmicki::hiddev
         std::vector<char>* buf = &buf1; // buffer swapper
 
         int scanDivider = 0;
+        bool skipWait = false;
 
         while(!stopTask)
         {
             ++scanDivider;
-
-            if(scan.get() != nullptr)
-                scan.get()->wait();
-            scan.reset(new std::future<void>(std::async(std::launch::async,std::this_thread::sleep_for<int64_t,std::milli>,scanPeriod)));
+            
+            if(!skipWait)
+            {
+                if(scan.get() != nullptr)
+                    scan.get()->wait();
+                scan.reset(new std::future<void>(std::async(std::launch::async,std::this_thread::sleep_for<int64_t,std::micro>,scanPeriod)));
+            }
+            skipWait = false;
 
             if(scanDivider < SCAN_DIVIDER)
             {
@@ -178,6 +183,7 @@ namespace kmicki::hiddev
                     pthread_cancel(ignoreHandle);
                     ignoreTimeout.wait();
                     reconnectInput(input,inputFilePath);
+                    skipWait = true;
                 }
                 continue;
             }

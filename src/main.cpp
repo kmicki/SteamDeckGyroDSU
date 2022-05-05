@@ -12,7 +12,7 @@ using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
 
 #define FRAME_LEN 64
-#define SCAN_PERIOD_MS 0
+#define SCAN_PERIOD_US 3650
 
 #define VID 0x28de
 #define PID 0x1205
@@ -45,7 +45,7 @@ int main()
 
     std::cout << "Found hiddev" << hidno << std::endl;
     
-    HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_MS);
+    HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_US);
     CemuhookAdapter adapter(reader);
 
     Server server(adapter);
