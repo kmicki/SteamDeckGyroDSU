@@ -9,7 +9,7 @@ To build the server and install it as a service for the first time switch to des
     git clone https://github.com/kmicki/SteamDeckGyroDSU.git
     cd SteamDeckGyroDSU
     
-    sudo ./install.sh
+    ./install.sh
     
 After that, restart the system and the DSU server should be active.
 To disable the server, use command:
