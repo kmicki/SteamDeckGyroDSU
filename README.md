@@ -27,8 +27,6 @@ To enable it again:
 
 The code runs DSU server that can be used with Cemu (cemuhook). To use it, modify cemuhook.ini with IP address of the Deck (set it in \[Input\] section as _serverIP_).
 
- **dev** branch contains the code.
-
 ## Build instructions
 
 The program is for Steam Deck specifically so instructions are for building on Steam Deck.
