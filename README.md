@@ -18,10 +18,11 @@ After that, restart the system and the DSU server should be active.
 To disable the server, use command:
 
     systemctl --user disable sdgyrodsu.service
+    systemctl --user stop sdgyrodsu.service
     
 To enable it again:
 
-    systemctl --user disable --now sdgyrodsu.service
+    systemctl --user enable --now sdgyrodsu.service
 
 ## Current status
 
