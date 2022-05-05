@@ -77,7 +77,7 @@ Use following commands to create a new user group and add current user to the gr
     sudo gpasswd -a $USER usbaccess
     sudo cp pkg/51-deck-controls.rules /etc/udev/rules.d/
     
-    Then restart the system.
+Then restart the system.
     
 ### Install user service
 
