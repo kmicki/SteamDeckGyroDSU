@@ -4,6 +4,7 @@ DSU (cemuhook protocol) server for motion data.
 ## Quick build and install instructions
 
 If SteamDeckGyroDSU is already installed and you want to update to the newest version, look into **Update** section below.
+
 To build the server and install it as a service for the first time switch to desktop mode, open terminal and enter following commands in order:
 
     cd
