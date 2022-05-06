@@ -16,6 +16,8 @@ bool showIncrement = false;
 #define FRAME_LEN 64
 #define SCAN_PERIOD_US 3900
 
+#define VERSION "1.4"
+
 #define VID 0x28de
 #define PID 0x1205
 
@@ -37,6 +39,7 @@ void WaitForKey()
 
 int main()
 {
+    std::cout << "Version: " << VERSION << std::endl;
     // Steam Deck controls: usb device VID: 28de, PID: 1205
     int hidno = FindHidDevNo(VID,PID);
     if(hidno < 0) 

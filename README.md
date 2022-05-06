@@ -3,6 +3,7 @@ DSU (cemuhook protocol) server for motion data.
 
 ## Quick build and install instructions
 
+If SteamDeckGyroDSU is already installed and you want to update to the newest version, look into **Update** section below.
 To build the server and install it as a service for the first time switch to desktop mode, open terminal and enter following commands in order:
 
     cd
@@ -23,6 +24,24 @@ To disable the server, use command:
 To enable it again:
 
     systemctl --user enable --now sdgyrodsu.service
+
+## Update to the current version
+
+If the repository was deleted from your device in the meantime, clone it again with commands below. Otherwise, skip those commands.
+
+    cd
+    git clone https://github.com/kmicki/SteamDeckGyroDSU.git
+
+Run following commands to update the server:
+
+    cd
+    cd SteamDeckGyroDSU
+    git checkout master
+    git pull
+
+    ./update.sh
+
+After that, the new version of the server should be running.
 
 ## Current status
 
