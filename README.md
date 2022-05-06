@@ -40,7 +40,7 @@ motionSource = DSU1
 \[Debug\]
 mmTimerAccuracy = 1ms
 </pre>
-    where **X.X.X.X** is Deck's IP.
+where **X.X.X.X** is Deck's IP.
 
 ## Build from source - quick instructions
 
