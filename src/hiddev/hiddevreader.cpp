@@ -326,6 +326,9 @@ namespace kmicki::hiddev
                         // Fill with generated frames to avoid jitter
                         auto fillPeriod = std::chrono::microseconds(3200/(diff-1));//3000/(diff-1));
 
+                        // Flag - replicated frames
+                        frame[0] = 0xDD;
+
                         for (int i = 0; i < diff-1; i++)
                         {
                             writingLock=false;
@@ -337,6 +340,8 @@ namespace kmicki::hiddev
                                 writingLock = true;
                             ++(*newInc);
                         }
+
+                        frame[0] = 0x01;
                     }
                     lastInc = *newInc;
 
