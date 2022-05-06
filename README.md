@@ -1,7 +1,49 @@
 # SteamDeckGyroDSU
 DSU (cemuhook protocol) server for motion data.
 
-## Quick build and install instructions
+## Installation instructions
+
+Download the SteamDeckGyroDSUSetup.zip from the most recent release. The same for updating.
+
+    unzip SteamDeckGyroDSUSetup.zip
+    cd SteamDeckGyroDSUSetup
+    ./install.sh
+    
+System restart is necessary in case of first install. Script will inform about that.
+    
+### Uninstall
+
+The SteamDeckGyroDSUSetup.zip contains also uninstall script.
+
+    ./uninstall.sh
+    
+## Usage
+
+Server is running as a service. It provides motion data for cemuhook at Deck's IP address and UDP port 26760.
+
+### Configuring Cemu
+
+1. Download [Cemu](https://cemu.info/) and extract files.
+2. Download [cemuhook](https://cemuhook.sshnuke.net/) and extract files to Cemu folder.
+3. Run Cemu at least once.
+4. If the server and Cemu are both running on Deck, the motion source should be selectable in Options -> Gamepad Motion Source -> DSU1 -> By Slot.
+5. If Cemu is running on a separate PC, open cemuhook.ini file and insert IP of the Deck under \[Input\] section as _serverIP_ similar to below:
+
+        \[Graphics\]
+        ignorePrecompiledShaderCache = false
+        \[CPU\]
+        customTimerMode = QPC
+        customTimerMultiplier = 1
+        \[Input\]
+        motionSource = DSU1
+        **serverIP = X.X.X.X**
+        \[Debug\]
+        mmTimerAccuracy = 1ms
+    where **X.X.X.X** is Deck's IP.
+
+## Build from source - quick instructions
+
+### Quick build from source and install instructions
 
 If SteamDeckGyroDSU is already installed and you want to update to the newest version, look into **Update** section below.
 
@@ -26,7 +68,7 @@ To enable it again:
 
     systemctl --user enable --now sdgyrodsu.service
 
-## Update to the current version
+### Update to the current version
 
 If the repository was deleted from your device in the meantime, clone it again with commands below. Otherwise, skip those commands.
 
@@ -44,11 +86,7 @@ Run following commands to update the server:
 
 After that, the new version of the server should be running.
 
-## Current status
-
-The code runs DSU server that can be used with Cemu (cemuhook). To use it, modify cemuhook.ini with IP address of the Deck (set it in \[Input\] section as _serverIP_).
-
-## Build instructions
+## Build from source - detailed
 
 The program is for Steam Deck specifically so instructions are for building on Steam Deck.
 
@@ -84,12 +122,12 @@ Build using following commands in a project's directory:
     mkdir -p bin
     g++ $(find inc -type d -printf '-I %p\n') -g $(find src -type f -iregex '.*\.cpp' -printf '%p\n') -pthread -lncurses -o bin/sdgyrodsu
   
-## Usage instructions
+### Usage
 
 If the server was installed using `install.sh` script, it should be running as a service after system restart. Otherwise, see below.
 When program is running, the DSU (cemuhook protocol) server providing motion data is available at Deck's IP address and UDP port 26760.
 
-### Grant permissions
+#### Grant permissions
 
 Use following commands to create a new user group and add current user to the group and then grant that group permission to read from hiddev file of Steam Deck controls (run those in a repository's main directory):
 
@@ -99,7 +137,7 @@ Use following commands to create a new user group and add current user to the gr
     
 Then restart the system.
     
-### Install user service
+#### Install user service
 
 If you want to run server automatically when Steam Deck is ON, install it as a service.
 
@@ -112,7 +150,7 @@ Then run those commands from repository directory:
     cp pkg/sdgyrodsu.service $HOME/.config/systemd/user/
     systemctl --user enable --now sdgyrodsu.service
 
-### Run without service
+#### Run without service
 
 You can use the server without installing a user service. Granting permissions is still necessary. Without granting permissions it will work only when run as root.
 
