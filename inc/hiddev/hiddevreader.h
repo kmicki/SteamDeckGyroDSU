@@ -78,6 +78,7 @@ namespace kmicki::hiddev
         protected:
 
         frame_t frame;
+
         int frameLen;
         std::string inputFilePath;
         bool preReadingLock;
@@ -113,7 +114,7 @@ namespace kmicki::hiddev
 
         std::mutex lockMutex, clientsMutex, startStopMutex;
 
-        void LossAnalysis();
+        void LossAnalysis(uint32_t diff);
 
         int lossPeriod;
         bool lossAnalysis;

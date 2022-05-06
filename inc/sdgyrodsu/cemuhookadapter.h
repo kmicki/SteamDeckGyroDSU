@@ -26,6 +26,7 @@ namespace kmicki::sdgyrodsu
         private:
         cemuhook::protocol::MotionData data;
         hiddev::HidDevReader & reader;
+
     };
 }
 

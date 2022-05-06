@@ -11,6 +11,8 @@
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
 
+bool showIncrement = false;
+
 #define FRAME_LEN 64
 #define SCAN_PERIOD_US 3900
 

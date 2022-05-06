@@ -1,4 +1,5 @@
 #include "hiddevreader.h"
+#include "cemuhookadapter.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -100,7 +101,7 @@ namespace kmicki::hiddev
 
     HidDevReader::frame_t const& HidDevReader::GetNewFrame(void * client)
     {
-        while(clients.find(client) != clients.end() && !stopTask) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        while(clients.find(client) != clients.end() && !stopTask) std::this_thread::sleep_for(std::chrono::microseconds(100));
         return GetFrame(client);
     }
 
@@ -149,15 +150,10 @@ namespace kmicki::hiddev
     // Extract HID frame from data read from /dev/usb/hiddevX
     void HidDevReader::processData(std::vector<char> const& bufIn) 
     {
-        clientsMutex.lock();
         // Each byte is encapsulated in an 8-byte long record
         for (int i = 0, j = BYTEPOS_INPUT; i < frame.size(); ++i,j+=INPUT_RECORD_LEN) {
             frame[i] = bufIn[j];
         }
-        writingLock = false;
-        
-        clients.clear();
-        clientsMutex.unlock();
     }
 
     void HidDevReader::readTask(std::vector<char>** buf)
@@ -195,10 +191,8 @@ namespace kmicki::hiddev
         }
     }
 
-    void HidDevReader::LossAnalysis()
+    void HidDevReader::LossAnalysis(uint32_t diff)
     {
-        uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(frame.data()+4);
-        uint32_t diff;
         if(lossAnalysis)
         {
             if(++lossPeriod > MAX_LOSS_PERIOD)
@@ -210,9 +204,8 @@ namespace kmicki::hiddev
                     
             }
         }
-        if(lastInc > 0 && (diff = newInc - lastInc) > 1 && diff < 1000)
+        if(lastInc > 0 && diff > 1 && diff < 1000)
         {
-            std::cout << "Lost frames : " << diff-1 << " after " << lossPeriod << " frames" << std::endl;
             if(diff > 25)
             {
                 if(smallLossEncountered || !lossAnalysis)
@@ -232,15 +225,14 @@ namespace kmicki::hiddev
             }
             lossPeriod = 0;
         }
-        lastInc = newInc;
     }
 
     void HidDevReader::executeReadingTask()
     {
         auto& input = static_cast<std::ifstream&>(*inputStream);
-        std::vector<char> buf1(INPUT_RECORD_LEN*frameLen);
-        std::vector<char> buf2(INPUT_RECORD_LEN*frameLen);
-        std::vector<char>* buf = &buf1; // buffer swapper
+        std::vector<char> buf1_1(INPUT_RECORD_LEN*frameLen);
+        std::vector<char> buf1_2(INPUT_RECORD_LEN*frameLen);
+        std::vector<char>* buf = &buf1_1; // buffer swapper
 
         enter=exit=0;
         tick=rdy=wait=false;
@@ -303,16 +295,18 @@ namespace kmicki::hiddev
                 reconnectInput(input,inputFilePath);
             }
             else {
+                if( readingLock || preReadingLock )
+                    std::this_thread::sleep_for(std::chrono::microseconds(200));
                 // Start processing data in a separate thread unless previous processing has not finished
                 if( !readingLock && !preReadingLock )
                 {
                     writingLock = true;
                     auto bufProcess = buf;
                     // swap buffers
-                    if(buf == &buf1)
-                        buf = &buf2;
+                    if(buf == &buf1_1)
+                        buf = &buf1_2;
                     else
-                        buf = &buf1;
+                        buf = &buf1_1;
                     {
                         std::unique_lock<std::mutex> lock(m);
                         rdy = false;
@@ -321,7 +315,37 @@ namespace kmicki::hiddev
                     }
                     
                     processData(*buf);
-                    LossAnalysis();
+
+                    uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
+                    uint32_t diff = *newInc - lastInc;
+                    LossAnalysis(diff);
+
+                    if(diff > 1 && lastInc > 0 && diff <= 40)
+                    {
+                        *newInc = lastInc+1;
+                        // Fill with generated frames to avoid jitter
+                        auto fillPeriod = std::chrono::microseconds(3200/(diff-1));//3000/(diff-1));
+
+                        for (int i = 0; i < diff-1; i++)
+                        {
+                            writingLock=false;
+                            clientsMutex.lock();
+                            clients.clear();
+                            clientsMutex.unlock();
+                            std::this_thread::sleep_for(fillPeriod);
+                            if( !readingLock && !preReadingLock )
+                                writingLock = true;
+                            ++(*newInc);
+                        }
+                    }
+                    lastInc = *newInc;
+
+                    writingLock = false;
+                    
+                    clientsMutex.lock();
+                    clients.clear();
+                    clientsMutex.unlock();
+                    
                 }
             }
         }

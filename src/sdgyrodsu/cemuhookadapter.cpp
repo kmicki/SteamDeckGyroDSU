@@ -1,14 +1,19 @@
 #include "cemuhookadapter.h"
 #include "sdhidframe.h"
 
+#include <iostream>
+
 using namespace kmicki::cemuhook::protocol;
 
-#define SD_SCANTIME_US 4000;
-#define ACC_1G 16383;
-#define GYRO_1DEGPERSEC 16;
+#define SD_SCANTIME_US 4000
+#define ACC_1G 0x4000
+#define GYRO_1DEGPERSEC 16
+#define GYRO_DEADZONE 4
+#define ACCEL_SMOOTH 0x7F
 
 namespace kmicki::sdgyrodsu
 {
+
     MotionData GetMotionData(SdHidFrame const& frame)
     {
         MotionData data;
@@ -16,6 +21,17 @@ namespace kmicki::sdgyrodsu
         SetMotionData(frame,data);
 
         return data;
+    }
+    
+    int16_t SmoothAccel(int16_t &last, int16_t curr)
+    {
+        if(abs(curr - last) < ACCEL_SMOOTH)
+            return last;
+        else
+        {
+            last = curr;
+            return curr;
+        }
     }
 
     void SetMotionData(SdHidFrame const& frame, MotionData &data)
@@ -27,14 +43,29 @@ namespace kmicki::sdgyrodsu
 
         data.timestampL = (uint32_t)(timestamp & 0xFFFFFFFF);
         data.timestampH = (uint32_t)(timestamp >> 32);
-        
-        data.accX = -(float)frame.AccelAxisRightToLeft/acc1G;
-        data.accY = -(float)frame.AccelAxisFrontToBack/acc1G;
-        data.accZ = (float)frame.AccelAxisTopToBottom/acc1G;
 
-        data.pitch = (float)frame.GyroAxisRightToLeft/gyro1dps;
-        data.yaw = -(float)frame.GyroAxisFrontToBack/gyro1dps;
-        data.roll = (float)frame.GyroAxisTopToBottom/gyro1dps;
+        static int16_t lastAccelRtL = 0;
+        static int16_t lastAccelFtB = 0;
+        static int16_t lastAccelTtB = 0;
+        
+        data.accX = -(float)SmoothAccel(lastAccelRtL,frame.AccelAxisRightToLeft)/acc1G;
+        data.accY = -(float)SmoothAccel(lastAccelFtB,frame.AccelAxisFrontToBack)/acc1G;
+        data.accZ = (float)SmoothAccel(lastAccelTtB,frame.AccelAxisTopToBottom)/acc1G;
+
+        auto gyroRtL = frame.GyroAxisRightToLeft;
+        auto gyroFtB = frame.GyroAxisFrontToBack;
+        auto gyroTtB = frame.GyroAxisTopToBottom;
+
+        if(gyroRtL < GYRO_DEADZONE && gyroRtL > -GYRO_DEADZONE)
+            gyroRtL = 0;
+        if(gyroFtB < GYRO_DEADZONE && gyroFtB > -GYRO_DEADZONE)
+            gyroFtB = 0;
+        if(gyroTtB < GYRO_DEADZONE && gyroTtB > -GYRO_DEADZONE)
+            gyroTtB = 0;
+
+        data.pitch = (float)gyroRtL/gyro1dps;
+        data.yaw = -(float)gyroFtB/gyro1dps;
+        data.roll = (float)gyroTtB/gyro1dps;
     }
 
     CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader)
@@ -50,9 +81,26 @@ namespace kmicki::sdgyrodsu
 
     MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
     {
-        SetMotionData(GetSdFrame(reader.GetNewFrame(this)),data);
-        reader.UnlockFrame(this);
-        return data;
+        static uint32_t lastInc = 0;
+        while(true)
+        {
+            auto const& frame = reader.GetNewFrame(this);
+
+            auto const& inc = *reinterpret_cast<uint32_t const*>(frame.data()+4);
+
+            if(inc <= lastInc && lastInc-inc < 40)
+            {
+                reader.UnlockFrame(this);
+            }
+            else
+            {
+                lastInc = inc;
+
+                SetMotionData(GetSdFrame(frame),data);
+                reader.UnlockFrame(this);
+                return data;
+            }
+        }
     }
 
     void CemuhookAdapter::StopFrameGrab()
