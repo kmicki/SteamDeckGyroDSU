@@ -92,20 +92,20 @@ namespace kmicki::sdgyrodsu
         static uint32_t lastInc = 0;
         while(true)
         {
-            auto const& frame = reader.GetNewFrame(this);
+            auto const& frame = reader.GetNewFrame();
 
             auto const& inc = *reinterpret_cast<uint32_t const*>(frame.data()+4);
 
             if(inc <= lastInc && lastInc-inc < 40)
             {
-                reader.UnlockFrame(this);
+                reader.UnlockFrame();
             }
             else
             {
                 lastInc = inc;
 
                 SetMotionData(GetSdFrame(frame),data);
-                reader.UnlockFrame(this);
+                reader.UnlockFrame();
                 return data;
             }
         }

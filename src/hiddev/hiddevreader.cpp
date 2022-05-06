@@ -19,13 +19,11 @@ namespace kmicki::hiddev
 
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
     :   frameLen(_frameLen),
-        frame(_frameLen),
-        preReadingLock(false),readingLock(false),writingLock(false),
+        frame(_frameLen),frameDelivered(false),
         stopTask(false),stopMetro(false),stopRead(false),
         scanPeriod(scanTime),
         inputStream(nullptr),
-        clients(),clientLocks(),
-        lockMutex(),clientsMutex(),startStopMutex(),
+        frameMutex(),startStopMutex(),
         v(),m()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
@@ -84,13 +82,10 @@ namespace kmicki::hiddev
         Stop();
     }
 
-    HidDevReader::frame_t const& HidDevReader::GetFrame(void * client)
+    HidDevReader::frame_t const& HidDevReader::GetFrame()
     {
-        LockFrame(client);
-        clientsMutex.lock();
-        if(clients.find(client) == clients.end())
-            clients.insert(client);
-        clientsMutex.unlock();
+        frameMutex.lock();
+        frameDelivered = true;
         return frame;
     }
 
@@ -99,45 +94,15 @@ namespace kmicki::hiddev
         return frame;
     }
 
-    HidDevReader::frame_t const& HidDevReader::GetNewFrame(void * client)
+    HidDevReader::frame_t const& HidDevReader::GetNewFrame()
     {
-        while(clients.find(client) != clients.end() && !stopTask) std::this_thread::sleep_for(std::chrono::microseconds(100));
-        return GetFrame(client);
+        while(frameDelivered && !stopTask) std::this_thread::sleep_for(std::chrono::microseconds(100));
+        return GetFrame();
     }
 
-    bool const& HidDevReader::IsFrameLockedForWriting() const
+    void HidDevReader::UnlockFrame()
     {
-        return writingLock;
-    }
-    bool const& HidDevReader::IsFrameLockedForReading() const
-    {
-        return readingLock;
-    }
-
-    void HidDevReader::LockFrame(void* client)
-    {
-        lockMutex.lock();
-        if(clientLocks.find(client) == clientLocks.end())
-            clientLocks.insert(client);
-        if(! preReadingLock && ! readingLock)
-        {
-            preReadingLock = true;
-            while(writingLock) ;
-            readingLock = true;
-            preReadingLock = false;
-        }
-        lockMutex.unlock();
-    }
-
-    void HidDevReader::UnlockFrame(void * client)
-    {
-        lockMutex.lock();
-        std::set<void*>::iterator iter;
-        while((iter = clientLocks.find(client)) != clientLocks.end())
-            clientLocks.erase(iter);
-        if(clientLocks.size() == 0)
-            readingLock = false;
-        lockMutex.unlock();
+        frameMutex.unlock();
     }
 
     void HidDevReader::reconnectInput(std::ifstream & stream, std::string path)
@@ -295,63 +260,52 @@ namespace kmicki::hiddev
                 reconnectInput(input,inputFilePath);
             }
             else {
-                if( readingLock || preReadingLock )
-                    std::this_thread::sleep_for(std::chrono::microseconds(200));
+                frameMutex.lock();
                 // Start processing data in a separate thread unless previous processing has not finished
-                if( !readingLock && !preReadingLock )
+
+                auto bufProcess = buf;
+                // swap buffers
+                if(buf == &buf1_1)
+                    buf = &buf1_2;
+                else
+                    buf = &buf1_1;
                 {
-                    writingLock = true;
-                    auto bufProcess = buf;
-                    // swap buffers
-                    if(buf == &buf1_1)
-                        buf = &buf1_2;
-                    else
-                        buf = &buf1_1;
-                    {
-                        std::unique_lock<std::mutex> lock(m);
-                        rdy = false;
-                        if(tick && wait)
-                            v.notify_one();
-                    }
-                    
-                    processData(*buf);
-
-                    uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
-                    uint32_t diff = *newInc - lastInc;
-                    LossAnalysis(diff);
-
-                    if(diff > 1 && lastInc > 0 && diff <= 40)
-                    {
-                        *newInc = lastInc+1;
-                        // Fill with generated frames to avoid jitter
-                        auto fillPeriod = std::chrono::microseconds(3200/(diff-1));//3000/(diff-1));
-
-                        // Flag - replicated frames
-                        frame[0] = 0xDD;
-
-                        for (int i = 0; i < diff-1; i++)
-                        {
-                            writingLock=false;
-                            clientsMutex.lock();
-                            clients.clear();
-                            clientsMutex.unlock();
-                            std::this_thread::sleep_for(fillPeriod);
-                            if( !readingLock && !preReadingLock )
-                                writingLock = true;
-                            ++(*newInc);
-                        }
-
-                        frame[0] = 0x01;
-                    }
-                    lastInc = *newInc;
-
-                    writingLock = false;
-                    
-                    clientsMutex.lock();
-                    clients.clear();
-                    clientsMutex.unlock();
-                    
+                    std::unique_lock<std::mutex> lock(m);
+                    rdy = false;
+                    if(tick && wait)
+                        v.notify_one();
                 }
+                
+                processData(*buf);
+
+                uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
+                uint32_t diff = *newInc - lastInc;
+                LossAnalysis(diff);
+
+                if(diff > 1 && lastInc > 0 && diff <= 40)
+                {
+                    *newInc = lastInc+1;
+                    // Fill with generated frames to avoid jitter
+                    auto fillPeriod = std::chrono::microseconds(3200/(diff-1));//3000/(diff-1));
+
+                    // Flag - replicated frames
+                    frame[0] = 0xDD;
+
+                    for (int i = 0; i < diff-1; i++)
+                    {
+                        frameDelivered = false;
+                        frameMutex.unlock();
+                        std::this_thread::sleep_for(fillPeriod);
+                        frameMutex.lock();
+                        ++(*newInc);
+                    }
+
+                    frame[0] = 0x01;
+                }
+                lastInc = *newInc;
+
+                frameDelivered = false;
+                frameMutex.unlock();
             }
         }
         stopRead = stopMetro = true;

@@ -16,7 +16,7 @@ bool showIncrement = false;
 #define FRAME_LEN 64
 #define SCAN_PERIOD_US 3900
 
-#define VERSION "1.5"
+#define VERSION "1.6"
 
 #define VID 0x28de
 #define PID 0x1205
@@ -72,6 +72,8 @@ int main()
         }
         if(!reader.IsStarted() && !reader.IsStopping())
             lastInc = 0;
+        else
+            lastInc = newInc;
         if(!reader.IsStopping())
             stopping = 0;
     }

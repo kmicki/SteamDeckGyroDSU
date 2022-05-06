@@ -41,7 +41,7 @@ namespace kmicki::hiddev
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
         // After finishing reading the frame, it is improtant to call UnlockFrame().
-        frame_t const& GetFrame(void * client = 0);
+        frame_t const& GetFrame();
 
         frame_t const& Frame();
 
@@ -49,23 +49,10 @@ namespace kmicki::hiddev
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
         // Blocks if there was no new frame after last use of GetFrame or GetNewFrame
-        frame_t const& GetNewFrame(void * client = 0);
-
-        // Check if frame is currently being written to.
-        // True means that GetFrame() will block until writing ends.
-        bool const& IsFrameLockedForWriting() const;
-
-        // Check if frame is locked for reading.
-        // True means that new frame will not be generated.
-        // Use UnlockFrame() to unlock it.
-        bool const& IsFrameLockedForReading() const;
-
-        // Lock frame for reading.
-        // If frame is locked for writing, it waits until writing is finished.
-        void LockFrame(void * client = 0);
+        frame_t const& GetNewFrame();
 
         // Unlock frame.
-        void UnlockFrame(void * client = 0);
+        void UnlockFrame();
 
         void Start();
 
@@ -75,15 +62,16 @@ namespace kmicki::hiddev
 
         bool IsStopping();
 
+        std::mutex frameMutex;
+
         protected:
+
+        bool frameDelivered;
 
         frame_t frame;
 
         int frameLen;
         std::string inputFilePath;
-        bool preReadingLock;
-        bool readingLock;
-        bool writingLock;
 
         std::chrono::microseconds scanPeriod;
 
@@ -109,10 +97,7 @@ namespace kmicki::hiddev
 
         std::unique_ptr<std::ifstream> inputStream;
 
-        std::set<void *> clients;
-        std::set<void *> clientLocks;
-
-        std::mutex lockMutex, clientsMutex, startStopMutex;
+        std::mutex startStopMutex;
 
         void LossAnalysis(uint32_t diff);
 
