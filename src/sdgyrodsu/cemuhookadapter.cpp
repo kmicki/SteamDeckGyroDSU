@@ -8,8 +8,8 @@ using namespace kmicki::cemuhook::protocol;
 #define SD_SCANTIME_US 4000
 #define ACC_1G 0x4000
 #define GYRO_1DEGPERSEC 16
-#define GYRO_DEADZONE 4
-#define ACCEL_SMOOTH 0x7F
+#define GYRO_DEADZONE 8
+#define ACCEL_SMOOTH 0x1FF
 
 namespace kmicki::sdgyrodsu
 {
@@ -51,21 +51,29 @@ namespace kmicki::sdgyrodsu
         data.accX = -(float)SmoothAccel(lastAccelRtL,frame.AccelAxisRightToLeft)/acc1G;
         data.accY = -(float)SmoothAccel(lastAccelFtB,frame.AccelAxisFrontToBack)/acc1G;
         data.accZ = (float)SmoothAccel(lastAccelTtB,frame.AccelAxisTopToBottom)/acc1G;
+        if(frame.Header & 0xFF == 0xDD)
+        {
+            data.pitch = 0.0f;
+            data.yaw = 0.0f;
+            data.roll = 0.0f;
+        }
+        else 
+        {
+            auto gyroRtL = frame.GyroAxisRightToLeft;
+            auto gyroFtB = frame.GyroAxisFrontToBack;
+            auto gyroTtB = frame.GyroAxisTopToBottom;
 
-        auto gyroRtL = frame.GyroAxisRightToLeft;
-        auto gyroFtB = frame.GyroAxisFrontToBack;
-        auto gyroTtB = frame.GyroAxisTopToBottom;
+            if(gyroRtL < GYRO_DEADZONE && gyroRtL > -GYRO_DEADZONE)
+                gyroRtL = 0;
+            if(gyroFtB < GYRO_DEADZONE && gyroFtB > -GYRO_DEADZONE)
+                gyroFtB = 0;
+            if(gyroTtB < GYRO_DEADZONE && gyroTtB > -GYRO_DEADZONE)
+                gyroTtB = 0;
 
-        if(gyroRtL < GYRO_DEADZONE && gyroRtL > -GYRO_DEADZONE)
-            gyroRtL = 0;
-        if(gyroFtB < GYRO_DEADZONE && gyroFtB > -GYRO_DEADZONE)
-            gyroFtB = 0;
-        if(gyroTtB < GYRO_DEADZONE && gyroTtB > -GYRO_DEADZONE)
-            gyroTtB = 0;
-
-        data.pitch = (float)gyroRtL/gyro1dps;
-        data.yaw = -(float)gyroFtB/gyro1dps;
-        data.roll = (float)gyroTtB/gyro1dps;
+            data.pitch = (float)gyroRtL/gyro1dps;
+            data.yaw = -(float)gyroFtB/gyro1dps;
+            data.roll = (float)gyroTtB/gyro1dps;
+        }
     }
 
     CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader)
