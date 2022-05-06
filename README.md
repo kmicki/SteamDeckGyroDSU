@@ -29,15 +29,15 @@ Server is running as a service. It provides motion data for cemuhook at Deck's I
 4. If the server and Cemu are both running on Deck, the motion source should be selectable in Options -> Gamepad Motion Source -> DSU1 -> By Slot.
 5. If Cemu is running on a separate PC, open cemuhook.ini file and insert IP of the Deck under \[Input\] section as _serverIP_ similar to below:
 <pre>
-\[Graphics\]
+[Graphics]
 ignorePrecompiledShaderCache = false
-\[CPU\]
+[CPU]
 customTimerMode = QPC
 customTimerMultiplier = 1
-\[Input\]
+[Input]
 motionSource = DSU1
 <b>serverIP = X.X.X.X</b>
-\[Debug\]
+[Debug]
 mmTimerAccuracy = 1ms
 </pre>
 where **X.X.X.X** is Deck's IP.
