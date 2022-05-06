@@ -16,4 +16,9 @@ g++ $(find inc -type d -printf '-I %p\n') -g $(find src -type f -iregex '.*\.cpp
 
 mkdir -p pkgbin/
 rm pkgbin/*
-zip pkgbin/sdgyrodsu.zip bin/*
+mkdir -p pkgbin/SteamDeckGyroDSUSetup
+cp bin/* pkgbin/SteamDeckGyroDSUSetup/
+
+cd pkgbin
+zip -r SteamDeckGyroDSUSetup.zip SteamDeckGyroDSUSetup
+rm -r SteamDeckGyroDSUSetup
