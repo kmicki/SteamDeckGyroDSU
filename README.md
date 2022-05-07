@@ -27,7 +27,8 @@ Server is running as a service. It provides motion data for cemuhook at Deck's I
 2. Download [cemuhook](https://cemuhook.sshnuke.net/) and extract files to Cemu folder.
 3. Run Cemu at least once.
 4. If the server and Cemu are both running on Deck, the motion source should be selectable in Options -> Gamepad Motion Source -> DSU1 -> By Slot.
-5. If Cemu is running on a separate PC, open cemuhook.ini file and insert IP of the Deck under \[Input\] section as _serverIP_ similar to below:
+5. Make sure that in _Input settings_ in Cemu _WiiU Gamepad_ is selected as an emulated controller.
+6. If Cemu is running on a separate PC, open cemuhook.ini file and insert IP of the Deck under \[Input\] section as _serverIP_ similar to below:
 <pre>
 [Graphics]
 ignorePrecompiledShaderCache = false
