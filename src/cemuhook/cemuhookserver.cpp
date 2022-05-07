@@ -184,7 +184,7 @@ namespace kmicki::cemuhook
                         {
                             stopSending = true;
                             sendThread.get()->join();
-                            std::this_thread::sleep_for(std::chrono::seconds(1));
+                            //std::this_thread::sleep_for(std::chrono::seconds(1));
                             sendThread.reset();
                         }
                         if(sendThread.get() == nullptr)
@@ -207,7 +207,7 @@ namespace kmicki::cemuhook
                         std::cout << "Cemuhook Server: No packet from client for some time. Stop sending data." << std::endl;
                         stopSending = true;
                         sendThread.get()->join();
-                        std::this_thread::sleep_for(std::chrono::seconds(1));
+                        //std::this_thread::sleep_for(std::chrono::seconds(1));
                         sendThread.reset();
                     }
                     sendTimeout = 0;
@@ -227,7 +227,6 @@ namespace kmicki::cemuhook
     {
         std::cout << "Cemuhook Server: Initiaiting frame grab start." << std::endl;
         motionSource.StartFrameGrab();
-
 
         std::pair<uint16_t , void const*> outBuf;
         uint32_t packet = 0;

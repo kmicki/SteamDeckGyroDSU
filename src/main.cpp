@@ -14,7 +14,7 @@ using namespace kmicki::hiddev;
 bool showIncrement = false;
 
 #define FRAME_LEN 64
-#define SCAN_PERIOD_US 3900
+#define SCAN_PERIOD_US 3945
 
 #define VERSION "1.8"
 
@@ -58,7 +58,7 @@ int main()
     int stopping = 0;
 
     while(true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(5));
         uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(reader.Frame().data()+4);
         if(newInc == lastInc)
         {

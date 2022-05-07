@@ -156,8 +156,9 @@ namespace kmicki::hiddev
         }
     }
 
-    void HidDevReader::LossAnalysis(uint32_t diff)
+    bool HidDevReader::LossAnalysis(uint32_t diff)
     {
+        bool result = false;
         if(lossAnalysis)
         {
             if(++lossPeriod > MAX_LOSS_PERIOD)
@@ -179,6 +180,7 @@ namespace kmicki::hiddev
                     scanPeriod -= std::chrono::microseconds(std::max(1,(6000-lossPeriod)/100));
                 std::cout << "Changed scan period to : " << scanPeriod.count() << " us" << std::endl;
                 lossAnalysis = true;
+                result = true;
             }
             else if(!lossAnalysis)
                 lossAnalysis = true;
@@ -187,9 +189,11 @@ namespace kmicki::hiddev
                 smallLossEncountered = true;
                 ++scanPeriod;
                 std::cout << "Changed scan period to : " << scanPeriod.count() << " us" << std::endl;
+                result = true;
             }
             lossPeriod = 0;
         }
+        return result;
     }
 
     void HidDevReader::executeReadingTask()
@@ -198,6 +202,9 @@ namespace kmicki::hiddev
         std::vector<char> buf1_1(INPUT_RECORD_LEN*frameLen);
         std::vector<char> buf1_2(INPUT_RECORD_LEN*frameLen);
         std::vector<char>* buf = &buf1_1; // buffer swapper
+
+        auto startTime = std::chrono::system_clock::now();
+        bool passedNoLossAnalysis = false;
 
         enter=exit=0;
         tick=rdy=wait=false;
@@ -252,12 +259,18 @@ namespace kmicki::hiddev
                 continue;
             }
             fail=0;
-            
+
             if(input.fail() || *(reinterpret_cast<unsigned int*>(buf->data())) != 0xFFFF0002)
             {
                 // Failed to read a frame
                 // or start in the middle of the input frame
-                reconnectInput(input,inputFilePath);
+                {
+                    std::unique_lock<std::mutex> lock(m);
+                    reconnectInput(input,inputFilePath);
+                    rdy = false; tick = true;
+                    if(wait)
+                        v.notify_one();
+                }
             }
             else {
                 frameMutex.lock();
@@ -280,7 +293,16 @@ namespace kmicki::hiddev
 
                 uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
                 uint32_t diff = *newInc - lastInc;
-                LossAnalysis(diff);
+
+                if(passedNoLossAnalysis || std::chrono::system_clock::now()-startTime > std::chrono::seconds(1))
+                {
+                    passedNoLossAnalysis = true;
+                    if(LossAnalysis(diff))
+                    {
+                        startTime = std::chrono::system_clock::now();
+                        passedNoLossAnalysis = false;
+                    }
+                }
 
                 if(diff > 1 && lastInc > 0 && diff <= 40)
                 {
