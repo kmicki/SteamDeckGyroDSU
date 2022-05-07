@@ -14,4 +14,3 @@ rm $HOME/.config/systemd/user/sdgyrodsu.service
 cp sdgyrodsu.service $HOME/.config/systemd/user/
 systemctl --user enable --now sdgyrodsu.service
 echo "Installation done."
-systemctl --user status sdgyrodsu.service
