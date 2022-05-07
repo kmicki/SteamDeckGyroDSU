@@ -23,15 +23,18 @@ namespace kmicki::sdgyrodsu
         return data;
     }
     
-    int16_t SmoothAccel(int16_t &last, int16_t curr)
+    float SmoothAccel(float &last, int16_t curr)
     {
+        static const float acc1G = (float)ACC_1G;
         if(abs(curr - last) < ACCEL_SMOOTH)
-            return last;
+        {
+            last = ((float)last*0.95+(float)curr*0.05);
+        }
         else
         {
-            last = curr;
-            return curr;
+            last = (float)curr;
         }
+        return last/acc1G;
     }
 
     void SetMotionData(SdHidFrame const& frame, MotionData &data)
@@ -44,13 +47,13 @@ namespace kmicki::sdgyrodsu
         data.timestampL = (uint32_t)(timestamp & 0xFFFFFFFF);
         data.timestampH = (uint32_t)(timestamp >> 32);
 
-        static int16_t lastAccelRtL = 0;
-        static int16_t lastAccelFtB = 0;
-        static int16_t lastAccelTtB = 0;
+        static float lastAccelRtL = 0;
+        static float lastAccelFtB = 0;
+        static float lastAccelTtB = 0;
         
-        data.accX = -(float)SmoothAccel(lastAccelRtL,frame.AccelAxisRightToLeft)/acc1G;
-        data.accY = -(float)SmoothAccel(lastAccelFtB,frame.AccelAxisFrontToBack)/acc1G;
-        data.accZ = (float)SmoothAccel(lastAccelTtB,frame.AccelAxisTopToBottom)/acc1G;
+        data.accX = -SmoothAccel(lastAccelRtL,frame.AccelAxisRightToLeft);
+        data.accY = -SmoothAccel(lastAccelFtB,frame.AccelAxisFrontToBack);
+        data.accZ = SmoothAccel(lastAccelTtB,frame.AccelAxisTopToBottom);
         if(frame.Header & 0xFF == 0xDD)
         {
             data.pitch = 0.0f;
