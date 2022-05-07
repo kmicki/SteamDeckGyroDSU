@@ -96,7 +96,7 @@ namespace kmicki::hiddev
 
     HidDevReader::frame_t const& HidDevReader::GetNewFrame()
     {
-        while(frameDelivered && !stopTask) std::this_thread::sleep_for(std::chrono::microseconds(100));
+        while(frameDelivered && !stopTask) std::this_thread::sleep_for(std::chrono::microseconds(10));
         return GetFrame();
     }
 

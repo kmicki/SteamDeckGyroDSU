@@ -60,7 +60,7 @@ int main()
     while(true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(reader.Frame().data()+4);
-        if(lastInc > 0 && newInc == lastInc)
+        if(newInc == lastInc)
         {
             if(reader.IsStarted() || stopping > 5)
             {
