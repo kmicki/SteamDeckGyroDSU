@@ -3,11 +3,15 @@ DSU (cemuhook protocol) server for motion data.
 
 ## Installation instructions
 
-Download the SteamDeckGyroDSUSetup.zip from the most recent release. Unzip and run install script. The same for updating.
+Download the SteamDeckGyroDSUSetup.zip from the most recent release. Unzip and run install script.
 
     unzip SteamDeckGyroDSUSetup.zip
     cd SteamDeckGyroDSUSetup
     ./install.sh
+    
+Package contains update script that downloads the most recent release from GitHub and installs it.
+
+    ./update.sh
     
 System restart is necessary in case of first install. Script will inform about that.
     
