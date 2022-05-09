@@ -38,6 +38,7 @@ The SteamDeckGyroDSUSetup.zip contains also uninstall script.
 ## Usage
 
 Server is running as a service. It provides motion data for cemuhook at Deck's IP address and UDP port 26760.
+
 **Remark:** The server provides only motion data. Remaining controls (buttons/axes) are not provided.
 
 ### Configuring Cemu
