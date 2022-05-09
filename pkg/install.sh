@@ -25,14 +25,14 @@ else
 	fi
 fi
 
-RESTART = false
+RESTART=false
 
 echo "Checking if there are permissions for 'usbaccess' group in place..."
 if test /etc/udev/rules.d/51-deck-controls.rules && cmp -s /etc/udev/rules.d/51-deck-controls.rules 51-deck-controls.rules; then
 	echo "Permissions are present."
 else
 	echo "Removing old permissions if present..."
-	sudo rm /etc/udev/rules.d/51-deck-controls.rules 2>&1 >/dev/null
+	sudo rm /etc/udev/rules.d/51-deck-controls.rules >/dev/null 2>&1 
 	echo "Adding permissions..."
 	if sudo cp 51-deck-controls.rules /etc/udev/rules.d/ >/dev/null; then
 		echo "Added permissions."
@@ -45,13 +45,13 @@ else
 		echo "Rules refreshed."
 	else
 		echo -e "\e[1mRefreshing rules failed.\e[0m"
-		RESTART = true
+		RESTART=true
 	fi
 fi
 
 echo "Stopping the service if it's running..."
-systemctl --user stop sdgyrodsu.service 2>&1 >/dev/null
-systemctl --user disable sdgyrodsu.service 2>&1 >/dev/null
+systemctl --user -q stop sdgyrodsu.service >/dev/null 2>&1
+systemctl --user -q disable sdgyrodsu.service >/dev/null 2>&1 
 echo "Copying binary..."
 if mkdir -p $HOME/sdgyrodsu >/dev/null; then
 	:
@@ -59,7 +59,7 @@ else
 	echo -e "\e[1mFailed to create a directory.\e[0m"
 	exit 24
 fi
-rm $HOME/sdgyrodsu/sdgyrodsu 2>&1 /dev/null
+rm $HOME/sdgyrodsu/sdgyrodsu >/dev/null 2>&1
 if cp sdgyrodsu $HOME/sdgyrodsu/ >/dev/null; then
 	:
 else
@@ -74,7 +74,7 @@ else
 fi
 
 echo "Installing service..."
-rm $HOME/.config/systemd/user/sdgyrodsu.service 2>&1 /dev/null
+rm $HOME/.config/systemd/user/sdgyrodsu.service >/dev/null 2>&1 
 if cp sdgyrodsu.service $HOME/.config/systemd/user/; then
 	:
 else
@@ -84,15 +84,15 @@ fi
 
 groups | grep -q 'usbaccess'
 
-if [ $? && [ "$RESTART" == false ] ] then
-	if systemctl --user enable --now sdgyrodsu.service >/dev/null; then
+if [ "$?" == 0 ] && [ "$RESTART" == false ]; then
+	if systemctl --user -q enable --now sdgyrodsu.service >/dev/null; then
 		echo "Installation done."
 	else
 		echo -e "\e[1mFailed enabling the service.\e[0m"
 		exit 28
 	fi
 else
-	if systemctl --user enable sdgyrodsu.service >/dev/null; then
+	if systemctl --user -q enable sdgyrodsu.service >/dev/null; then
 		echo "Installation done."
 		echo -e "\e[1mDeck has to be restarted for server to run.\e[0m"
 		exit 0
