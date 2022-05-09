@@ -5,13 +5,13 @@ DSU (cemuhook protocol) server for motion data.
 
 In Steam Deck's desktop mode, open Konsole and execute command:
 
-    bash <(curl -s https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/update.sh)
+    bash <(curl -sL https://github.com/kmicki/SteamDeckGyroDSU/raw/master/pkg/update.sh)
     
 Above command will download the binary package and install it.
 
 To uninstall:
 
-    bash <(curl -s https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/uninstall.sh)
+    bash <(curl -sL https://github.com/kmicki/SteamDeckGyroDSU/raw/master/pkg/uninstall.sh)
 
 ## Alternative installation instructions
 
