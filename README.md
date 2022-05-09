@@ -1,7 +1,15 @@
 # SteamDeckGyroDSU
 DSU (cemuhook protocol) server for motion data.
 
-## Installation instructions
+## Quick installation/update
+
+In Steam Deck's desktop mode, open Konsole and execute command:
+
+    bash <(https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/update.sh)
+    
+Above command will download the binary package and install it.
+
+## Alternative installation instructions
 
 Download the SteamDeckGyroDSUSetup.zip from the most recent release. Unzip and run install script.
 
