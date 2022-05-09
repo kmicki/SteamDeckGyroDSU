@@ -1,46 +1,103 @@
-echo "Checking user group."
+echo "Checking 'usbaccess' user group..."
 if cat /etc/group | grep -q 'usbaccess'; then
-	echo "usbaccess group exits."
+	echo "'usbaccess' group exits."
 else
-	echo "Creating usbacces group."
-	sudo groupadd usbaccess
+	echo "No 'usbacces' group exists..."
+	echo "Creating 'usbacces' group..."
+	if sudo groupadd usbaccess >/dev/null; then
+		echo "Created 'usbacces' group..."
+	else
+		echo -e "\e[1mFailed creating 'usbaccess' group.\e[0m"
+		exit 20
+	fi
 fi
 
-echo "Checking if current user is in an 'usbaccess' group."
+echo "Checking if current user is in an 'usbaccess' group..."
 if groups $USER | grep -q 'usbaccess'; then
 	echo "User is in an 'usbaccess' group."
 else
-	echo "Adding user to 'usbaccess' group."
-	sudo gpasswd -a $USER usbaccess
+	echo "Adding user to 'usbaccess' group..."
+	if sudo gpasswd -a $USER usbaccess >/dev/null; then
+		echo "Added user to 'usbaccess' group."
+	else
+		echo -e "\e[1mFailed adding user to 'usbaccess' group.\e[0m"
+		exit 21
+	fi
 fi
 
-echo "Checking if there are permissions for 'usbaccess' group in place."
+RESTART = false
+
+echo "Checking if there are permissions for 'usbaccess' group in place..."
 if test /etc/udev/rules.d/51-deck-controls.rules && cmp -s /etc/udev/rules.d/51-deck-controls.rules 51-deck-controls.rules; then
 	echo "Permissions are present."
 else
-	echo "Removing old permissions if present."
-	sudo rm /etc/udev/rules.d/51-deck-controls.rules
-	echo "Adding permissions."
-	sudo cp 51-deck-controls.rules /etc/udev/rules.d/
-	echo "Refreshing rules."
-	sudo udevadm control --reload-rules && sudo udevadm trigger
+	echo "Removing old permissions if present..."
+	sudo rm /etc/udev/rules.d/51-deck-controls.rules 2>&1 >/dev/null
+	echo "Adding permissions..."
+	if sudo cp 51-deck-controls.rules /etc/udev/rules.d/ >/dev/null; then
+		echo "Added permissions."
+	else
+		echo -e "\e[1mFailed to copy permissions file.\e[0m"
+		exit 23
+	fi
+	echo "Refreshing rules..."
+	if sudo udevadm control --reload-rules && sudo udevadm trigger >/dev/null; then
+		echo "Rules refreshed."
+	else
+		echo -e "\e[1mRefreshing rules failed.\e[0m"
+		RESTART = true
+	fi
 fi
 
-echo "Stopping the service if it's running"
-systemctl --user stop sdgyrodsu.service
-systemctl --user disable sdgyrodsu.service
-echo "Copying binary."
-mkdir -p $HOME/sdgyrodsu
-rm $HOME/sdgyrodsu/sdgyrodsu
-cp sdgyrodsu $HOME/sdgyrodsu/
-chmod +x $HOME/sdgyrodsu/sdgyrodsu
-echo "Installing service"
-rm $HOME/.config/systemd/user/sdgyrodsu.service
-cp sdgyrodsu.service $HOME/.config/systemd/user/
-if groups | grep -q 'usbaccess'; then
-	systemctl --user enable --now sdgyrodsu.service
-	echo "Installation done."
+echo "Stopping the service if it's running..."
+systemctl --user stop sdgyrodsu.service 2>&1 >/dev/null
+systemctl --user disable sdgyrodsu.service 2>&1 >/dev/null
+echo "Copying binary..."
+if mkdir -p $HOME/sdgyrodsu >/dev/null; then
+	:
 else
-	systemctl --user enable sdgyrodsu.service
-	echo "Installation done. Deck has to be restarted for server to run."
+	echo -e "\e[1mFailed to create a directory.\e[0m"
+	exit 24
+fi
+rm $HOME/sdgyrodsu/sdgyrodsu 2>&1 /dev/null
+if cp sdgyrodsu $HOME/sdgyrodsu/ >/dev/null; then
+	:
+else
+	echo -e "\e[1mFailed to copy binary file.\e[0m"
+	exit 25
+fi
+if chmod +x $HOME/sdgyrodsu/sdgyrodsu >/dev/null; then
+	echo "Binary copied."
+else
+	echo -e "\e[1mFailed to set binary as executable.\e[0m"
+	exit 26
+fi
+
+echo "Installing service..."
+rm $HOME/.config/systemd/user/sdgyrodsu.service 2>&1 /dev/null
+if cp sdgyrodsu.service $HOME/.config/systemd/user/; then
+	:
+else
+	echo -e "\e[1mFailed to copy service file into user systemd location.\e[0m"
+	exit 27
+fi
+
+groups | grep -q 'usbaccess'
+
+if [ $? && [ "$RESTART" == false ] ] then
+	if systemctl --user enable --now sdgyrodsu.service >/dev/null; then
+		echo "Installation done."
+	else
+		echo -e "\e[1mFailed enabling the service.\e[0m"
+		exit 28
+	fi
+else
+	if systemctl --user enable sdgyrodsu.service >/dev/null; then
+		echo "Installation done."
+		echo -e "\e[1mDeck has to be restarted for server to run.\e[0m"
+		exit 0
+	else
+		echo -e "\e[1mFailed enabling the service.\e[0m"
+		exit 28
+	fi
 fi
