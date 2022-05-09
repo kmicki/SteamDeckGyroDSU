@@ -9,6 +9,10 @@ In Steam Deck's desktop mode, open Konsole and execute command:
     
 Above command will download the binary package and install it.
 
+To uninstall:
+
+    bash <(curl -s https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/uninstall.sh)
+
 ## Alternative installation instructions
 
 Download the SteamDeckGyroDSUSetup.zip from the most recent release. Unzip and run install script.
