@@ -1,7 +1,7 @@
 # SteamDeckGyroDSU
 DSU (cemuhook protocol) server for motion data.
 
-## Quick installation/update
+## Install/Update
 
 In Steam Deck's desktop mode, open Konsole.
 
