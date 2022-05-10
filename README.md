@@ -5,7 +5,7 @@ DSU (cemuhook protocol) server for motion data.
 
 In Steam Deck's desktop mode, open Konsole.
 
-The installation will require superuser access to set USB permissions. Therefore it will ask to input deck user's password.
+First-time install will require superuser access to set USB permissions. Therefore it will ask to input deck user's password.
 
 If you've never set the password on your Deck, use `passwd` instruction and set it. Be aware: Konsole will not show the password you're typing in as a security measure.
 
