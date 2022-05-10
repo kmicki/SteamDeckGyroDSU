@@ -9,31 +9,11 @@ In Steam Deck's desktop mode, open Konsole and execute command:
     
 Above command will download the binary package and install it.
 
+In case of first-time install, system restart is required. The install script will inform about that.
+
 To uninstall:
 
     bash <(curl -sL https://github.com/kmicki/SteamDeckGyroDSU/raw/master/pkg/uninstall.sh)
-
-## Alternative installation instructions
-
-Download the SteamDeckGyroDSUSetup.zip from the most recent release. Unzip and run install script.
-
-    cd
-    wget https://github.com/kmicki/SteamDeckGyroDSU/releases/latest/download/SteamDeckGyroDSUSetup.zip
-    unzip -o SteamDeckGyroDSUSetup.zip
-    cd SteamDeckGyroDSUSetup
-    ./install.sh
-    
-Package contains update script that downloads the most recent release from GitHub and installs it.
-
-    ./update.sh
-    
-System restart is necessary in case of first install. Script will inform about that.
-    
-### Uninstall
-
-The SteamDeckGyroDSUSetup.zip contains also uninstall script.
-
-    ./uninstall.sh
     
 ## Usage
 
@@ -63,6 +43,8 @@ mmTimerAccuracy = 1ms
 </pre>
 where **X.X.X.X** is Deck's IP.
 
-## Build and install from source
+## Alternative installation
+
+To install the server a binary package provided in a release, see [wiki page](https://github.com/kmicki/SteamDeckGyroDSU/wiki/Alternative-installation-instructions).
 
 To build the server from source on Deck and install it, see [wiki page](https://github.com/kmicki/SteamDeckGyroDSU/wiki/Build-and-install-from-source).
