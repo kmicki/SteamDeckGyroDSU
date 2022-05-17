@@ -12,6 +12,7 @@
 			"dependsOn": "Prepare build",
 			"command": "/usr/bin/g++",
 			"args": [
+				"-std=c++2a",
 				"-fdiagnostics-color=always",
 				"$(find",
 				"${workspaceFolder}/inc",
