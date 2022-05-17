@@ -7,6 +7,7 @@
 #include <fstream>
 #include <set>
 #include <mutex>
+#include <shared_mutex>
 #include <condition_variable>
 
 namespace kmicki::hiddev 
@@ -41,8 +42,10 @@ namespace kmicki::hiddev
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
         // After finishing reading the frame, it is improtant to call UnlockFrame().
-        frame_t const& GetFrame();
+        // client parameter allows to get frame and lock for many clients
+        frame_t const& GetFrame(void* client = nullptr);
 
+        // Get current frame data without locking for reading.
         frame_t const& Frame();
 
         // Get current frame data.
@@ -52,52 +55,59 @@ namespace kmicki::hiddev
         frame_t const& GetNewFrame();
 
         // Unlock frame.
-        void UnlockFrame();
+        void UnlockFrame(void* client = nullptr);
 
+        // Start process of grabbing frames.
         void Start();
 
+        // Stop process of grabbing frames
         void Stop();
 
+        // Is grabbing frames in progress?
         bool IsStarted();
 
+        // Is grabbing frames being stopped right now?
         bool IsStopping();
-
-        std::mutex frameMutex;
 
         protected:
 
-        bool frameDelivered;
-
         frame_t frame;
-
         int frameLen;
+
         std::string inputFilePath;
 
-        std::chrono::microseconds scanPeriod;
-
-        bool stopTask; // stop reading task
-        bool stopRead;
-        bool stopMetro;
-
+        std::chrono::microseconds scanPeriod;        
+        
+        // Threads
         std::unique_ptr<std::thread> readingTask;
+
+        // Stop tasks
+        bool stopTask;  // stop frame grab task
+        bool stopRead;  // stop data read task
+        bool stopMetro; // stop metronome
+
+        // Mutexes
+        std::shared_mutex frameMutex;      // reading and writing to frame
+        std::mutex startStopMutex;  // starting/stopping frame grab
+        std::mutex readTaskMutex;   // stopping read task/reading data from HID
+        std::mutex stopMetroMutex;  // stopping metronome
+
+        // Condition variables
+        std::condition_variable readTaskProceed; 
+        std::condition_variable frameProceed;
 
         // Method called in a reading task on a separate thread.
         void executeReadingTask();
         void readTask(std::vector<char>** buf);
         void Metronome();
 
-        std::mutex readTaskMutex;
-        std::condition_variable readTaskProceed;
-
         int readTaskEnter,readTaskExit;
-        bool tick,rdy,wait;
+        bool readTick,hidDataReady;
 
         static void reconnectInput(std::ifstream & stream, std::string path);
         void processData(std::vector<char> const& bufIn);        
 
         std::unique_ptr<std::ifstream> inputStream;
-
-        std::mutex startStopMutex;
 
         bool LossAnalysis(uint32_t diff);
 
@@ -106,6 +116,10 @@ namespace kmicki::hiddev
         uint32_t lastInc;
         bool smallLossEncountered;
         std::chrono::microseconds bigLossDuration;
+
+        // Clients reading frame data
+        std::vector<void*> readLockClients;
+        std::vector<void*> frameDeliveredClients;
     };
 
 }

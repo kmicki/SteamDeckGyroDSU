@@ -19,12 +19,13 @@ namespace kmicki::hiddev
 
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
     :   frameLen(_frameLen),
-        frame(_frameLen),frameDelivered(false),
+        frame(_frameLen),
         stopTask(false),stopMetro(false),stopRead(false),
         scanPeriod(scanTime),
         inputStream(nullptr),
         frameMutex(),startStopMutex(),
-        readTaskProceed(),readTaskMutex()
+        readTaskProceed(),readTaskMutex(),
+        readLockClients()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -82,11 +83,11 @@ namespace kmicki::hiddev
         Stop();
     }
 
-    HidDevReader::frame_t const& HidDevReader::GetFrame()
+    HidDevReader::frame_t const& HidDevReader::GetFrame(void* client)
     {
-        frameMutex.lock();
-        frameDelivered = true;
-        return frame;
+        std::lock_guard<std::shared_mutex> lock(frameMutex);
+        frameDeliveredClients.push_back(client);
+        return Frame();
     }
 
     HidDevReader::frame_t const& HidDevReader::Frame()
@@ -96,11 +97,11 @@ namespace kmicki::hiddev
 
     HidDevReader::frame_t const& HidDevReader::GetNewFrame()
     {
-        while(frameDelivered && !stopTask) std::this_thread::sleep_for(std::chrono::microseconds(10));
+        while(!stopTask) std::this_thread::sleep_for(std::chrono::microseconds(10));
         return GetFrame();
     }
 
-    void HidDevReader::UnlockFrame()
+    void HidDevReader::UnlockFrame(void* client)
     {
         frameMutex.unlock();
     }
@@ -124,11 +125,10 @@ namespace kmicki::hiddev
     void HidDevReader::readTask(std::vector<char>** buf)
     {
         std::unique_lock<std::mutex> lockStop(readTaskMutex);
-        lockStop.lock();
         while(!stopRead)
         {
             lockStop.unlock();
-            tick=false;
+            readTick=false;
             ++readTaskEnter;
             inputStream->read((*buf)->data(),(*buf)->size());
             {
@@ -137,10 +137,10 @@ namespace kmicki::hiddev
                     break;
             }
             readTaskExit=readTaskEnter;
-            rdy = true;
+            hidDataReady = true;
             {
                 std::unique_lock<std::mutex> lock(readTaskMutex);
-                readTaskProceed.wait(lock,[&] { return tick && !rdy; });
+                readTaskProceed.wait(lock,[&] { return readTick && !hidDataReady; });
             }
             lockStop.lock();
         }
@@ -153,7 +153,7 @@ namespace kmicki::hiddev
             std::this_thread::sleep_for(scanPeriod);
             {
                 std::lock_guard<std::mutex> lock(readTaskMutex);
-                tick = true;
+                readTick = true;
             }
             readTaskProceed.notify_one();
         }
@@ -210,7 +210,7 @@ namespace kmicki::hiddev
         bool passedNoLossAnalysis = false;
 
         readTaskEnter=readTaskExit=0;
-        tick=rdy=wait=false;
+        readTick=hidDataReady=wait=false;
         int fail = 0;
         int lastEnter = 0;
 
@@ -231,7 +231,7 @@ namespace kmicki::hiddev
         {
             std::this_thread::sleep_for(std::chrono::microseconds(500));
 
-            if(!rdy)
+            if(!hidDataReady)
             {
                 if(readTaskEnter!=readTaskExit)
                 {
@@ -246,8 +246,8 @@ namespace kmicki::hiddev
                         {
                             std::lock_guard<std::mutex> lock(readTaskMutex);
                             stopRead = true;
-                            tick = true;
-                            rdy = false;
+                            readTick = true;
+                            hidDataReady = false;
                         }
                         readTaskProceed.notify_one();
 
@@ -255,7 +255,7 @@ namespace kmicki::hiddev
                         pthread_cancel(handle);
                         readThread->join();
                         stopRead = false;
-                        tick = true;
+                        readTick = true;
                         readThread.reset(new std::thread(&HidDevReader::readTask,this,&buf));
                         handle = readThread->native_handle();
                         fail=0;
@@ -272,7 +272,7 @@ namespace kmicki::hiddev
                 {
                     std::lock_guard<std::mutex> lock(readTaskMutex);
                     reconnectInput(input,inputFilePath);
-                    rdy = false; tick = true;
+                    hidDataReady = false; readTick = true;
                     if(wait)
                         readTaskProceed.notify_one();
                 }
@@ -289,8 +289,8 @@ namespace kmicki::hiddev
                     buf = &buf1_1;
                 {
                     std::lock_guard<std::mutex> lock(readTaskMutex);
-                    rdy = false;
-                    if(tick && wait)
+                    hidDataReady = false;
+                    if(readTick && wait)
                         readTaskProceed.notify_one();
                 }
                 
