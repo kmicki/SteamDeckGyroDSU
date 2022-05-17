@@ -3,13 +3,13 @@
 	"tasks": [
 		{
 			"type": "shell",
-			"label": "Create bin directory",
-			"command": "mkdir -p \"${workspaceFolder}/bin\"",
+			"label": "Prepare build",
+			"command": "${workspaceFolder}/prepare.sh",
 		},
 		{
 			"type": "cppbuild",
 			"label": "Build",
-			"dependsOn": "Create bin directory",
+			"dependsOn": "Prepare build",
 			"command": "/usr/bin/g++",
 			"args": [
 				"-fdiagnostics-color=always",
