@@ -86,10 +86,10 @@ namespace kmicki::hiddev
         void readTask(std::vector<char>** buf);
         void Metronome();
 
-        std::mutex m;
-        std::condition_variable v;
+        std::mutex readTaskMutex;
+        std::condition_variable readTaskProceed;
 
-        int enter,exit;
+        int readTaskEnter,readTaskExit;
         bool tick,rdy,wait;
 
         static void reconnectInput(std::ifstream & stream, std::string path);
