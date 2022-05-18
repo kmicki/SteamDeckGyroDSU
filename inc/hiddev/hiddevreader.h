@@ -87,10 +87,12 @@ namespace kmicki::hiddev
         bool stopMetro; // stop metronome
 
         // Mutexes
-        std::shared_mutex frameMutex;      // reading and writing to frame
-        std::mutex startStopMutex;  // starting/stopping frame grab
-        std::mutex readTaskMutex;   // stopping read task/reading data from HID
-        std::mutex stopMetroMutex;  // stopping metronome
+        std::mutex mainMutex;               // stop entire task
+        std::shared_mutex frameMutex;       // reading and writing to frame
+        std::mutex clientMutex;             // client vectors
+        std::mutex startStopMutex;          // starting/stopping frame grab
+        std::mutex readTaskMutex;           // stopping read task/reading data from HID
+        std::mutex stopMetroMutex;          // stopping metronome
 
         // Condition variables
         std::condition_variable readTaskProceed; 
@@ -101,7 +103,6 @@ namespace kmicki::hiddev
         void readTask(std::vector<char>** buf);
         void Metronome();
 
-        int readTaskEnter,readTaskExit;
         bool readTick,hidDataReady;
 
         static void reconnectInput(std::ifstream & stream, std::string path);
@@ -118,7 +119,7 @@ namespace kmicki::hiddev
         std::chrono::microseconds bigLossDuration;
 
         // Clients reading frame data
-        std::vector<void*> readLockClients;
+        std::vector<void*> frameLockClients;
         std::vector<void*> frameDeliveredClients;
     };
 

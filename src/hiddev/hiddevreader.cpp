@@ -25,7 +25,7 @@ namespace kmicki::hiddev
         inputStream(nullptr),
         frameMutex(),startStopMutex(),
         readTaskProceed(),readTaskMutex(),
-        readLockClients()
+        frameLockClients()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -85,18 +85,22 @@ namespace kmicki::hiddev
 
     HidDevReader::frame_t const& HidDevReader::GetFrame(void* client)
     {
-        std::lock_guard<std::shared_mutex> lock(frameMutex);
-        frameDeliveredClients.push_back(client);
+        {
+            std::lock_guard lock(clientMutex);
+            frameDeliveredClients.push_back(client);        
+        }
         return Frame();
     }
 
     HidDevReader::frame_t const& HidDevReader::Frame()
     {
+        std::shared_lock lock(frameMutex);
         return frame;
     }
 
     HidDevReader::frame_t const& HidDevReader::GetNewFrame()
     {
+        std::unique_lock lock(clientMutex);
         while(!stopTask) std::this_thread::sleep_for(std::chrono::microseconds(10));
         return GetFrame();
     }
@@ -124,38 +128,40 @@ namespace kmicki::hiddev
 
     void HidDevReader::readTask(std::vector<char>** buf)
     {
-        std::unique_lock<std::mutex> lockStop(readTaskMutex);
+        std::unique_lock<std::mutex> lock(readTaskMutex);
         while(!stopRead)
         {
-            lockStop.unlock();
+            readTaskProceed.wait(lock,[&] { return readTick && !hidDataReady; });
             readTick=false;
-            ++readTaskEnter;
+
+            lock.unlock();
+
             inputStream->read((*buf)->data(),(*buf)->size());
-            {
-                std::lock_guard<std::mutex> lock(readTaskMutex);
-                if(stopRead)
-                    break;
-            }
-            readTaskExit=readTaskEnter;
+
+            lock.lock();
+
+            if(stopRead)
+                break;
             hidDataReady = true;
-            {
-                std::unique_lock<std::mutex> lock(readTaskMutex);
-                readTaskProceed.wait(lock,[&] { return readTick && !hidDataReady; });
-            }
-            lockStop.lock();
+            lock.unlock();
+            readTaskProceed.notify_one();
+            lock.lock();
         }
     }
 
     void HidDevReader::Metronome()
     {
+        std::unique_lock<std::mutex> stopLock(stopMetroMutex);
         while(!stopMetro)
         {
+            stopLock.unlock();
             std::this_thread::sleep_for(scanPeriod);
             {
                 std::lock_guard<std::mutex> lock(readTaskMutex);
                 readTick = true;
             }
             readTaskProceed.notify_one();
+            stopLock.lock();
         }
     }
 
@@ -202,22 +208,26 @@ namespace kmicki::hiddev
     void HidDevReader::executeReadingTask()
     {
         auto& input = static_cast<std::ifstream&>(*inputStream);
-        std::vector<char> buf1_1(INPUT_RECORD_LEN*frameLen);
-        std::vector<char> buf1_2(INPUT_RECORD_LEN*frameLen);
-        std::vector<char>* buf = &buf1_1; // buffer swapper
+        std::vector<char> buf1(INPUT_RECORD_LEN*frameLen);
+        std::vector<char> buf2(INPUT_RECORD_LEN*frameLen);
+        std::vector<char>* buf = &buf1; // buffer swapper
 
         auto startTime = std::chrono::system_clock::now();
         bool passedNoLossAnalysis = false;
-
-        readTaskEnter=readTaskExit=0;
-        readTick=hidDataReady=wait=false;
-        int fail = 0;
         int lastEnter = 0;
 
-        stopRead = stopMetro = false;
+        {
+            std::lock_guard lock(readTaskMutex);
+            stopRead=readTick=hidDataReady=false;
+        }
+        {
+            std::lock_guard lock(stopMetroMutex);
+            stopMetro = false;
+        }
 
-        std::unique_ptr<std::thread> readThread(new std::thread(&HidDevReader::readTask,this,&buf));
+        std::unique_ptr<std::thread> readThread(new std::thread(&HidDevReader::readTask,this,&buf));  
         auto handle = readThread->native_handle();
+
         std::thread metronome(&HidDevReader::Metronome,this);
 
         lossPeriod = 0;
@@ -227,113 +237,111 @@ namespace kmicki::hiddev
 
         std::cout << "Scan period initial : " << scanPeriod.count() << " us" << std::endl;
 
+        std::unique_lock mainLock(mainMutex);
         while(!stopTask)
         {
-            std::this_thread::sleep_for(std::chrono::microseconds(500));
+            mainLock.unlock();
+
+            {
+                std::unique_lock lock(readTaskMutex);
+                readTaskProceed.wait_for(lock,std::chrono::milliseconds(5),[&] { return hidDataReady; });
+            }
 
             if(!hidDataReady)
             {
-                if(readTaskEnter!=readTaskExit)
                 {
-                    if(readTaskEnter != lastEnter) 
-                    {
-                        fail = 0;
-                        lastEnter = readTaskEnter;
-                    }
-                    ++fail;
-                    if(fail > FAIL_COUNT)
-                    {
-                        {
-                            std::lock_guard<std::mutex> lock(readTaskMutex);
-                            stopRead = true;
-                            readTick = true;
-                            hidDataReady = false;
-                        }
-                        readTaskProceed.notify_one();
-
-                        std::this_thread::sleep_for(std::chrono::microseconds(300));
-                        pthread_cancel(handle);
-                        readThread->join();
-                        stopRead = false;
-                        readTick = true;
-                        readThread.reset(new std::thread(&HidDevReader::readTask,this,&buf));
-                        handle = readThread->native_handle();
-                        fail=0;
-                    }
+                    std::lock_guard lock(readTaskMutex);
+                    stopRead = true;
+                    readTick = true;
+                    hidDataReady = false;
                 }
+                readTaskProceed.notify_one();
+
+                std::this_thread::sleep_for(std::chrono::microseconds(300));
+                pthread_cancel(handle);
+                readThread->join();
+                {
+                    std::lock_guard lock(readTaskMutex);
+                    stopRead = false;
+                    if(!hidDataReady)
+                        readTick = true;
+                }
+                readThread.reset(new std::thread(&HidDevReader::readTask,this,&buf));
+                handle = readThread->native_handle();
+
+                mainLock.lock();
                 continue;
             }
-            fail=0;
 
             if(input.fail() || *(reinterpret_cast<unsigned int*>(buf->data())) != 0xFFFF0002)
             {
                 // Failed to read a frame
                 // or start in the middle of the input frame
                 {
-                    std::lock_guard<std::mutex> lock(readTaskMutex);
+                    std::lock_guard lock(readTaskMutex);
                     reconnectInput(input,inputFilePath);
                     hidDataReady = false; readTick = true;
-                    if(wait)
-                        readTaskProceed.notify_one();
+                }
+                readTaskProceed.notify_one();
+
+                mainLock.lock();
+                continue;
+            }
+
+            auto bufProcess = buf;
+
+            // swap buffers
+            if(buf == &buf1)
+                buf = &buf2;
+            else
+                buf = &buf1;
+
+            {
+                std::lock_guard<std::mutex> lock(readTaskMutex);
+                hidDataReady = false;
+            }
+            readTaskProceed.notify_one();
+            
+            processData(*bufProcess);
+
+            uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
+            uint32_t diff = *newInc - lastInc;
+
+            if(passedNoLossAnalysis || std::chrono::system_clock::now()-startTime > std::chrono::seconds(1))
+            {
+                passedNoLossAnalysis = true;
+                if(LossAnalysis(diff))
+                {
+                    startTime = std::chrono::system_clock::now();
+                    passedNoLossAnalysis = false;
                 }
             }
-            else {
-                frameMutex.lock();
-                // Start processing data in a separate thread unless previous processing has not finished
 
-                auto bufProcess = buf;
-                // swap buffers
-                if(buf == &buf1_1)
-                    buf = &buf1_2;
-                else
-                    buf = &buf1_1;
+            if(diff > 1 && lastInc > 0 && diff <= 40)
+            {
+                *newInc = lastInc+1;
+                // Fill with generated frames to avoid jitter
+                auto fillPeriod = std::chrono::microseconds(3200/(diff-1));//3000/(diff-1));
+
+                // Flag - replicated frames
+                frame[0] = 0xDD;
+
+                for (int i = 0; i < diff-1; i++)
                 {
-                    std::lock_guard<std::mutex> lock(readTaskMutex);
-                    hidDataReady = false;
-                    if(readTick && wait)
-                        readTaskProceed.notify_one();
-                }
-                
-                processData(*bufProcess);
-
-                uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
-                uint32_t diff = *newInc - lastInc;
-
-                if(passedNoLossAnalysis || std::chrono::system_clock::now()-startTime > std::chrono::seconds(1))
-                {
-                    passedNoLossAnalysis = true;
-                    if(LossAnalysis(diff))
-                    {
-                        startTime = std::chrono::system_clock::now();
-                        passedNoLossAnalysis = false;
-                    }
+                    frameDelivered = false;
+                    frameMutex.unlock();
+                    std::this_thread::sleep_for(fillPeriod);
+                    frameMutex.lock();
+                    ++(*newInc);
                 }
 
-                if(diff > 1 && lastInc > 0 && diff <= 40)
-                {
-                    *newInc = lastInc+1;
-                    // Fill with generated frames to avoid jitter
-                    auto fillPeriod = std::chrono::microseconds(3200/(diff-1));//3000/(diff-1));
-
-                    // Flag - replicated frames
-                    frame[0] = 0xDD;
-
-                    for (int i = 0; i < diff-1; i++)
-                    {
-                        frameDelivered = false;
-                        frameMutex.unlock();
-                        std::this_thread::sleep_for(fillPeriod);
-                        frameMutex.lock();
-                        ++(*newInc);
-                    }
-
-                    frame[0] = 0x01;
-                }
-                lastInc = *newInc;
-
-                frameDelivered = false;
-                frameMutex.unlock();
+                frame[0] = 0x01;
             }
+            lastInc = *newInc;
+
+            frameDelivered = false;
+            frameMutex.unlock();
+            mainLock.lock();
         }
         stopRead = stopMetro = true;
         {
