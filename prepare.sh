@@ -43,7 +43,7 @@ if [ "$common_reinstall" == true ]; then
     done
     if [ "$rofs" == true ]; then
         echo "Reenabling read only filesystem..."     
-	sudo steamos-readonly disable &>/dev/null
+	sudo steamos-readonly enable &>/dev/null
     fi
     echo "Required dependencies reinstalled."
 else
@@ -57,3 +57,4 @@ echo -e "Clearing \e[1mbin\e[0m directory..."
 rm bin/* &>/dev/null
 
 exit 0
+
