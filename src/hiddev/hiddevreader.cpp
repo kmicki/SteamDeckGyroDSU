@@ -289,7 +289,7 @@ namespace kmicki::hiddev
                         v.notify_one();
                 }
                 
-                processData(*buf);
+                processData(*bufProcess);
 
                 uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
                 uint32_t diff = *newInc - lastInc;
