@@ -386,8 +386,8 @@ namespace kmicki::hiddev
                         std::lock_guard lock(clientDeliveredMutex);
                         frameDeliveredClients.clear();
                     }
-                    frameLock.unlock();
                     newFrameProceed.notify_all();
+                    frameLock.unlock();
                     std::this_thread::sleep_for(fillPeriod);
                     frameLock.lock();
                     nextFrameProceed.wait(frameLock,[&] { return frameLockClients.empty(); } );
@@ -401,8 +401,8 @@ namespace kmicki::hiddev
                 std::lock_guard lock(clientDeliveredMutex);
                 frameDeliveredClients.clear();
             }
-            frameLock.unlock();
             newFrameProceed.notify_all();
+            frameLock.unlock();
             mainLock.lock();
         }
         {
