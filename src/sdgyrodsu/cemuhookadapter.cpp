@@ -14,11 +14,11 @@ using namespace kmicki::cemuhook::protocol;
 namespace kmicki::sdgyrodsu
 {
 
-    MotionData GetMotionData(SdHidFrame const& frame)
+    MotionData CemuhookAdapter::GetMotionData(SdHidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
     {
         MotionData data;
 
-        SetMotionData(frame,data);
+        SetMotionData(frame,data,lastAccelRtL,lastAccelFtB,lastAccelTtB);
 
         return data;
     }
@@ -37,7 +37,7 @@ namespace kmicki::sdgyrodsu
         return last/acc1G;
     }
 
-    void SetMotionData(SdHidFrame const& frame, MotionData &data)
+    void CemuhookAdapter::SetMotionData(SdHidFrame const& frame, MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
     {
         static const float acc1G = (float)ACC_1G;
         static const float gyro1dps = (float)GYRO_1DEGPERSEC;
@@ -46,10 +46,6 @@ namespace kmicki::sdgyrodsu
 
         data.timestampL = (uint32_t)(timestamp & 0xFFFFFFFF);
         data.timestampH = (uint32_t)(timestamp >> 32);
-
-        static float lastAccelRtL = 0;
-        static float lastAccelFtB = 0;
-        static float lastAccelTtB = 0;
         
         data.accX = -SmoothAccel(lastAccelRtL,frame.AccelAxisRightToLeft);
         data.accY = -SmoothAccel(lastAccelFtB,frame.AccelAxisFrontToBack);
@@ -80,7 +76,9 @@ namespace kmicki::sdgyrodsu
     }
 
     CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader)
-    : reader(_reader)
+    : reader(_reader),
+      lastInc(0),
+      lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0)
     {
         ;
     }
@@ -92,23 +90,22 @@ namespace kmicki::sdgyrodsu
 
     MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
     {
-        static uint32_t lastInc = 0;
         while(true)
         {
-            auto const& frame = reader.GetNewFrame();
+            auto const& frame = reader.GetNewFrame(this);
 
             auto const& inc = *reinterpret_cast<uint32_t const*>(frame.data()+4);
 
             if(inc <= lastInc && lastInc-inc < 40)
             {
-                reader.UnlockFrame();
+                reader.UnlockFrame(this);
             }
             else
             {
                 lastInc = inc;
 
-                SetMotionData(GetSdFrame(frame),data);
-                reader.UnlockFrame();
+                SetMotionData(GetSdFrame(frame),data,lastAccelRtL,lastAccelFtB,lastAccelTtB);
+                reader.UnlockFrame(this);
                 return data;
             }
         }

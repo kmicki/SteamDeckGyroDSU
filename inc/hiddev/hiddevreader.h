@@ -52,7 +52,7 @@ namespace kmicki::hiddev
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
         // Blocks if there was no new frame after last use of GetFrame or GetNewFrame
-        frame_t const& GetNewFrame();
+        frame_t const& GetNewFrame(void* client = nullptr);
 
         // Unlock frame.
         void UnlockFrame(void* client = nullptr);
@@ -89,7 +89,7 @@ namespace kmicki::hiddev
         // Mutexes
         std::mutex mainMutex;               // stop entire task
         std::shared_mutex frameMutex;       // reading and writing to frame
-        std::mutex clientMutex;             // client vectors
+        std::shared_mutex clientDeliveredMutex;             // client vectors
         std::mutex startStopMutex;          // starting/stopping frame grab
         std::mutex readTaskMutex;           // stopping read task/reading data from HID
         std::mutex stopMetroMutex;          // stopping metronome
@@ -97,6 +97,8 @@ namespace kmicki::hiddev
         // Condition variables
         std::condition_variable readTaskProceed; 
         std::condition_variable frameProceed;
+        std::condition_variable_any newFrameProceed;
+        std::condition_variable_any nextFrameProceed;
 
         // Method called in a reading task on a separate thread.
         void executeReadingTask();

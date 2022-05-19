@@ -8,6 +8,7 @@
 #include <future>
 #include <memory>
 #include <set>
+#include <algorithm>
 
 namespace kmicki::hiddev
 {
@@ -16,16 +17,16 @@ namespace kmicki::hiddev
     #define FAIL_COUNT 10
     #define MAX_LOSS_PERIOD 10000
 
-
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
     :   frameLen(_frameLen),
         frame(_frameLen),
         stopTask(false),stopMetro(false),stopRead(false),
         scanPeriod(scanTime),
         inputStream(nullptr),
-        frameMutex(),startStopMutex(),
-        readTaskProceed(),readTaskMutex(),
-        frameLockClients()
+        mainMutex(),frameMutex(),clientDeliveredMutex(),startStopMutex(),
+        readTaskMutex(),stopMetroMutex(),
+        readTaskProceed(),frameProceed(),newFrameProceed(),nextFrameProceed(),
+        frameLockClients(),frameDeliveredClients()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -39,42 +40,63 @@ namespace kmicki::hiddev
 
     void HidDevReader::Start()
     {
-        startStopMutex.lock();
+        std::lock_guard startLock(startStopMutex); // prevent starting and stopping at the same time
+
         std::cout << "HidDevReader: Attempting to start frame grab." << std::endl;
-        if(readingTask.get() != nullptr)
-            return;
-        stopTask = false;
+        if(readingTask != nullptr)
+            return; // already started
+
+        {
+            std::lock_guard lock(mainMutex);
+            stopTask = false;
+        }
+
         inputStream.reset(new std::ifstream(inputFilePath,std::ios_base::binary));
 
-        if(inputStream.get()->fail())
+        if(inputStream->fail())
             throw std::runtime_error("Failed to open hiddev file. Are priviliges granted?");
 
         readingTask.reset(new std::thread(&HidDevReader::executeReadingTask,std::ref(*this)));
-        startStopMutex.unlock();
         std::cout << "HidDevReader: Started frame grab." << std::endl;
     }
     
     void HidDevReader::Stop()
     {
-        startStopMutex.lock();
+        std::lock_guard startLock(startStopMutex); // prevent starting and stopping at the same time
+
         std::cout << "HidDevReader: Attempting to stop frame grab." << std::endl;
-        stopTask = true;
-        if(readingTask.get() != nullptr)
+
         {
-            readingTask.get()->join();
-            readingTask.reset();
+            std::lock_guard lock(mainMutex);
+            stopTask = true;
         }
-        startStopMutex.unlock();
+
+        if(readingTask != nullptr)
+        {
+            {
+                std::lock_guard lock(frameMutex);
+                frameLockClients.clear();
+            }
+            readingTask->join();
+            readingTask.reset();
+            {
+                std::lock_guard lock(clientDeliveredMutex);
+                frameDeliveredClients.clear();
+            }
+        }
+
         std::cout << "HidDevReader: Stopped frame grab." << std::endl;
     }
 
     bool HidDevReader::IsStarted()
     {
+        std::scoped_lock lock(startStopMutex,mainMutex);
         return readingTask.get() != nullptr && !stopTask;
     }
 
     bool HidDevReader::IsStopping()
     {
+        std::scoped_lock lock(startStopMutex,mainMutex);
         return readingTask.get() != nullptr && stopTask;
     }
 
@@ -85,29 +107,60 @@ namespace kmicki::hiddev
 
     HidDevReader::frame_t const& HidDevReader::GetFrame(void* client)
     {
+        bool markClient = false;
         {
-            std::lock_guard lock(clientMutex);
-            frameDeliveredClients.push_back(client);        
+            std::lock_guard mainLock(mainMutex);
+            markClient = !stopTask;
         }
-        return Frame();
+
+        std::shared_lock lock(frameMutex);
+        if(markClient)
+        {
+            frameLockClients.push_back(client);
+            {
+                std::lock_guard lock(clientDeliveredMutex);
+                frameDeliveredClients.push_back(client);
+            }
+        }
+        return frame;
     }
 
     HidDevReader::frame_t const& HidDevReader::Frame()
     {
-        std::shared_lock lock(frameMutex);
         return frame;
     }
 
-    HidDevReader::frame_t const& HidDevReader::GetNewFrame()
+    HidDevReader::frame_t const& HidDevReader::GetNewFrame(void* client)
     {
-        std::unique_lock lock(clientMutex);
-        while(!stopTask) std::this_thread::sleep_for(std::chrono::microseconds(10));
-        return GetFrame();
+        {
+            std::shared_lock lock(clientDeliveredMutex);
+            newFrameProceed.wait(  
+                lock,
+                [&]
+                {
+                    // returns true if provided client is not in the vector
+                    return std::find(frameDeliveredClients.begin(),
+                                    frameDeliveredClients.end(),
+                                    client) == frameDeliveredClients.end();
+                });
+        }
+        return GetFrame(client);
     }
 
     void HidDevReader::UnlockFrame(void* client)
     {
-        frameMutex.unlock();
+        {
+            std::lock_guard lock(frameMutex);
+            std::vector<void*>::const_iterator item = frameLockClients.begin();
+            while(item != frameLockClients.end())
+            {
+                if(*item == client)
+                    item = frameLockClients.erase(item);
+                else
+                    ++item;
+            }
+        }    
+        nextFrameProceed.notify_all();       
     }
 
     void HidDevReader::reconnectInput(std::ifstream & stream, std::string path)
@@ -144,7 +197,7 @@ namespace kmicki::hiddev
                 break;
             hidDataReady = true;
             lock.unlock();
-            readTaskProceed.notify_one();
+            readTaskProceed.notify_all();
             lock.lock();
         }
     }
@@ -160,7 +213,7 @@ namespace kmicki::hiddev
                 std::lock_guard<std::mutex> lock(readTaskMutex);
                 readTick = true;
             }
-            readTaskProceed.notify_one();
+            readTaskProceed.notify_all();
             stopLock.lock();
         }
     }
@@ -255,7 +308,7 @@ namespace kmicki::hiddev
                     readTick = true;
                     hidDataReady = false;
                 }
-                readTaskProceed.notify_one();
+                readTaskProceed.notify_all();
 
                 std::this_thread::sleep_for(std::chrono::microseconds(300));
                 pthread_cancel(handle);
@@ -282,7 +335,7 @@ namespace kmicki::hiddev
                     reconnectInput(input,inputFilePath);
                     hidDataReady = false; readTick = true;
                 }
-                readTaskProceed.notify_one();
+                readTaskProceed.notify_all();
 
                 mainLock.lock();
                 continue;
@@ -300,8 +353,12 @@ namespace kmicki::hiddev
                 std::lock_guard<std::mutex> lock(readTaskMutex);
                 hidDataReady = false;
             }
-            readTaskProceed.notify_one();
+            readTaskProceed.notify_all();
             
+            std::unique_lock frameLock(frameMutex);
+
+            nextFrameProceed.wait(frameLock,[&] { return frameLockClients.empty(); } );
+
             processData(*bufProcess);
 
             uint32_t * newInc = reinterpret_cast<uint32_t *>(frame.data()+4);
@@ -323,32 +380,40 @@ namespace kmicki::hiddev
                 // Fill with generated frames to avoid jitter
                 auto fillPeriod = std::chrono::microseconds(3200/(diff-1));//3000/(diff-1));
 
-                // Flag - replicated frames
-                frame[0] = 0xDD;
-
                 for (int i = 0; i < diff-1; i++)
                 {
-                    frameDelivered = false;
-                    frameMutex.unlock();
+                    {
+                        std::lock_guard lock(clientDeliveredMutex);
+                        frameDeliveredClients.clear();
+                    }
+                    frameLock.unlock();
+                    newFrameProceed.notify_all();
                     std::this_thread::sleep_for(fillPeriod);
-                    frameMutex.lock();
+                    frameLock.lock();
+                    nextFrameProceed.wait(frameLock,[&] { return frameLockClients.empty(); } );
                     ++(*newInc);
                 }
-
-                frame[0] = 0x01;
             }
+
             lastInc = *newInc;
 
-            frameDelivered = false;
-            frameMutex.unlock();
+            {
+                std::lock_guard lock(clientDeliveredMutex);
+                frameDeliveredClients.clear();
+            }
+            frameLock.unlock();
+            newFrameProceed.notify_all();
             mainLock.lock();
         }
-        stopRead = stopMetro = true;
         {
-            std::lock_guard<std::mutex> lock(readTaskMutex);
-            if(wait)
-                readTaskProceed.notify_one();
+            std::lock_guard lock(readTaskMutex);
+            stopRead = true;
         }
+        {
+            std::lock_guard lock(stopMetroMutex);
+            stopMetro = true;
+        }
+        readTaskProceed.notify_all();
         std::this_thread::sleep_for(std::chrono::seconds(1));
         pthread_cancel(handle);
         readThread->join();

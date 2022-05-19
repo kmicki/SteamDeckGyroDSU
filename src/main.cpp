@@ -7,6 +7,7 @@
 #include "cemuhookadapter.h"
 #include <iostream>
 #include <future>
+#include <thread>
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
@@ -14,9 +15,9 @@ using namespace kmicki::hiddev;
 bool showIncrement = false;
 
 #define FRAME_LEN 64
-#define SCAN_PERIOD_US 3945
+#define SCAN_PERIOD_US 3900
 
-#define VERSION "1.9"
+#define VERSION "1.10"
 
 #define VID 0x28de
 #define PID 0x1205
@@ -35,6 +36,19 @@ void WaitForKey()
 {
     std::cin.get();
     stop = true;
+}
+
+void PresenterRun(HidDevReader * reader)
+{
+    int temp;
+    void* tempPtr = reinterpret_cast<void*>(&temp);
+    Presenter::Initialize();
+    while(!stop)
+    {
+        Presenter::Present(GetSdFrame(reader->GetNewFrame(tempPtr)));
+        reader->UnlockFrame(tempPtr);
+    }
+    Presenter::Finish();
 }
 
 int main()
@@ -56,6 +70,8 @@ int main()
 
     uint32_t lastInc = 0;
     int stopping = 0;
+
+    //std::thread presenter(PresenterRun,&reader);
 
     while(true) {
         std::this_thread::sleep_for(std::chrono::seconds(5));
