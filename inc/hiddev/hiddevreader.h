@@ -2,10 +2,6 @@
 #define _KMICKI_HIDDEV_HIDDEVREADER_H_
 
 #include <vector>
-#include <string>
-#include <thread>
-#include <fstream>
-#include <set>
 #include <mutex>
 #include <shared_mutex>
 #include <condition_variable>
@@ -69,14 +65,16 @@ namespace kmicki::hiddev
         // Is grabbing frames being stopped right now?
         bool IsStopping();
 
-        protected:
+        private:
+
+        static const int cInputRecordLen;
 
         frame_t frame;
         int frameLen;
 
         std::string inputFilePath;
 
-        std::chrono::microseconds scanPeriod;        
+        std::chrono::microseconds scanPeriod;   // set time span between read attempts
         
         // Threads
         std::unique_ptr<std::thread> readingTask;
@@ -87,12 +85,12 @@ namespace kmicki::hiddev
         bool stopMetro; // stop metronome
 
         // Mutexes
-        std::mutex mainMutex;               // stop entire task
-        std::shared_mutex frameMutex;       // reading and writing to frame
-        std::shared_mutex clientDeliveredMutex;             // client vectors
-        std::mutex startStopMutex;          // starting/stopping frame grab
-        std::mutex readTaskMutex;           // stopping read task/reading data from HID
-        std::mutex stopMetroMutex;          // stopping metronome
+        std::mutex mainMutex;                           // stop entire task
+        std::shared_mutex frameMutex;                   // reading and writing to frame
+        std::shared_mutex clientDeliveredMutex;         // access to clients delivered vector
+        std::mutex startStopMutex;                      // starting/stopping frame grab
+        std::mutex readTaskMutex;                       // stopping read task/reading data from HID
+        std::mutex stopMetroMutex;                      // stopping metronome
 
         // Condition variables
         std::condition_variable readTaskProceed; 
@@ -100,29 +98,35 @@ namespace kmicki::hiddev
         std::condition_variable_any newFrameProceed;
         std::condition_variable_any nextFrameProceed;
 
-        // Method called in a reading task on a separate thread.
-        void executeReadingTask();
-        void readTask(std::vector<char>** buf);
-        void Metronome();
-
+        // Separate tasks for separate threads
+        void mainTask();                                // main task run in a thread
+        void readTask(std::unique_ptr<std::vector<char>> const& buf);         // read from hiddev
+        void Metronome();                               // pace the readTask reading
+        
+        // Flow control readTask-Metronome-mainTask
         bool readTick,hidDataReady;
-
-        static void reconnectInput(std::ifstream & stream, std::string path);
-        void processData(std::vector<char> const& bufIn);        
-
+        
+        // Stream for reading from hiddev
         std::unique_ptr<std::ifstream> inputStream;
 
-        bool LossAnalysis(uint32_t diff);
+        // helper functions
+        static void reconnectInput(std::ifstream & stream, std::string path);   // open hiddev file again
+        void processData(std::vector<char> const& bufIn);                       // convert raw hiddevN data into HID frame
+        bool LossAnalysis(uint32_t const& diff);                                      // analyze lost packets and adjust scan time
+        void IntializeLossAnalysis();   // intialize fields
 
+        // Fields used by loss analysis
         int lossPeriod;
         bool lossAnalysis;
         uint32_t lastInc;
         bool smallLossEncountered;
         std::chrono::microseconds bigLossDuration;
+        std::chrono::system_clock::time_point lastAnalyzedFrameLossTime;
+        bool passedNoLossAnalysis;
 
         // Clients reading frame data
-        std::vector<void*> frameLockClients;
-        std::vector<void*> frameDeliveredClients;
+        std::vector<void*> frameLockClients;        // clients that acquired frame data but didn't signal unlock yet
+        std::vector<void*> frameDeliveredClients;   // clients that already had the current frame delivered
     };
 
 }
