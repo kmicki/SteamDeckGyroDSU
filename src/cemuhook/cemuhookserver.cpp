@@ -35,7 +35,8 @@ namespace kmicki::cemuhook
     }
 
     Server::Server(CemuhookAdapter & _motionSource)
-        : motionSource(_motionSource), stop(false), serverThread(), stopSending(false)
+        : motionSource(_motionSource), stop(false), serverThread(), stopSending(false),
+          mainMutex(), stopSendMutex(), socketSendMutex()
     {
         PrepareAnswerConstants();
         Start();
@@ -45,7 +46,10 @@ namespace kmicki::cemuhook
     {
         if(serverThread.get() != nullptr)
         {
-            stop = true;
+            {
+                std::lock_guard lock(mainMutex);
+                stop = true;
+            }
             serverThread.get()->join();
         }
         if(socketFd > -1)
@@ -57,7 +61,10 @@ namespace kmicki::cemuhook
         std::cout << "Cemuhook Server: Initializing." << std::endl;
         if(serverThread.get() != nullptr)
         {
-            stop = true;
+            {
+                std::lock_guard lock(mainMutex);
+                stop = true;
+            }
             serverThread.get()->join();
             serverThread.reset();
         }
@@ -83,6 +90,7 @@ namespace kmicki::cemuhook
         if(bind(socketFd, (sockaddr*)&sockInServer, sizeof(sockInServer)) < 0)
             throw std::runtime_error("Bind failed.");
 
+        stop = false;
         serverThread.reset(new std::thread(&Server::serverTask,this));
         std::cout << "Cemuhook Server: Initialized." << std::endl;
     }
@@ -151,9 +159,11 @@ namespace kmicki::cemuhook
         int sendTimeout = 0;
 
         std::cout << "Cemuhook Server: Start listening for client." << std::endl;
-
+        
+        std::unique_lock mainLock(mainMutex);
         while(!stop)
         {
+            mainLock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
             auto recvLen = recvfrom(socketFd,buf,BUFLEN,0,(sockaddr*) &sockInClient, &sockInLen);
             if(recvLen >= headerSize)
@@ -165,7 +175,10 @@ namespace kmicki::cemuhook
                 {
                     case VERSION_TYPE:
                         outBuf = PrepareVersionAnswer(header.id);
-                        sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
+                        {
+                            std::lock_guard lock(socketSendMutex);
+                            sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
+                        }
                         break;
                     case INFO_TYPE:
                         {
@@ -173,7 +186,10 @@ namespace kmicki::cemuhook
                             for (int i = 0; i < req.portCnt; i++)
                             {
                                 outBuf = PrepareInfoAnswer(header.id, req.slots[i]);
-                                sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
+                                {
+                                    std::lock_guard lock(socketSendMutex);
+                                    sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
+                                }
                             }
                         }
                         break;
@@ -182,7 +198,10 @@ namespace kmicki::cemuhook
                            && (sockInClient.sin_addr.s_addr != sendSockInClient.sin_addr.s_addr
                                || sockInClient.sin_port != sendSockInClient.sin_port))
                         {
-                            stopSending = true;
+                            {
+                                std::lock_guard lock(stopSendMutex);
+                                stopSending = true;
+                            }
                             sendThread.get()->join();
                             //std::this_thread::sleep_for(std::chrono::seconds(1));
                             sendThread.reset();
@@ -205,7 +224,10 @@ namespace kmicki::cemuhook
                     if(sendThread.get() != nullptr)
                     {
                         std::cout << "Cemuhook Server: No packet from client for some time. Stop sending data." << std::endl;
-                        stopSending = true;
+                        {
+                            std::lock_guard lock(stopSendMutex);
+                            stopSending = true;
+                        }
                         sendThread.get()->join();
                         //std::this_thread::sleep_for(std::chrono::seconds(1));
                         sendThread.reset();
@@ -215,10 +237,14 @@ namespace kmicki::cemuhook
                     
                     
             }
+            mainLock.lock();
         }
         if(sendThread.get() != nullptr)
         {
-            stopSending = true;
+            {
+                std::lock_guard lock(stopSendMutex);
+                stopSending = true;
+            }
             sendThread.get()->join();
         }
     }
@@ -233,10 +259,17 @@ namespace kmicki::cemuhook
 
         std::cout << "Cemuhook Server: Start sending controller data." << std::endl;
 
+        std::unique_lock mainLock(stopSendMutex);
+
         while(!stopSending)
         {
+            mainLock.unlock();
             outBuf = PrepareDataAnswer(id,packet++);
-            sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
+            {
+                std::lock_guard lock(socketSendMutex);
+                sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
+            }
+            mainLock.lock();
         }
 
         std::cout << "Cemuhook Server: Initiating frame grab stop." << std::endl;

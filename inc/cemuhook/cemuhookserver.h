@@ -5,6 +5,7 @@
 #include "cemuhookprotocol.h"
 #include <thread>
 #include <netinet/in.h>
+#include <mutex>
 
 using namespace kmicki::cemuhook::protocol;
 
@@ -20,6 +21,10 @@ namespace kmicki::cemuhook
         ~Server();
 
         private:
+
+        std::mutex mainMutex;
+        std::mutex stopSendMutex;
+        std::mutex socketSendMutex;
 
         bool stop;
         bool stopSending;
