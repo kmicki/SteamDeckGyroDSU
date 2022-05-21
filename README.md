@@ -49,6 +49,14 @@ mmTimerAccuracy = 1ms
 </pre>
 where **X.X.X.X** is Deck's IP.
 
+## Reporting problems
+
+When reporting a problem or an issue with the server, please generate a log file with following command:
+
+    journalctl --user -u sdgyrodsu > sdgyrodsu.log
+    
+File `sdgyrodsu.log` will be generated in current directory. Attach it to the issue describing the problem.
+
 ## Alternative installation
 
 To install the server using a binary package provided in a release, see [wiki page](https://github.com/kmicki/SteamDeckGyroDSU/wiki/Alternative-installation-instructions).

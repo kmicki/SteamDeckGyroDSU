@@ -113,7 +113,7 @@ namespace kmicki::hiddev
         // helper functions
         static void reconnectInput(std::ifstream & stream, std::string path);   // open hiddev file again
         void processData(std::vector<char> const& bufIn);                       // convert raw hiddevN data into HID frame
-        bool LossAnalysis(uint32_t const& diff);                                      // analyze lost packets and adjust scan time
+        bool LossAnalysis(int64_t const& diff);                                  // analyze lost packets and adjust scan time
         void IntializeLossAnalysis();   // intialize fields
 
         // Fields used by loss analysis
