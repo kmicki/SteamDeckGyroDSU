@@ -12,8 +12,16 @@ else
 	echo -e "\e[1mFailed to extract files from downloaded .zip release...\e[0m"
 	exit 11
 fi
+
+rm -f SteamDeckGyroDSUSetup.zip
+
 cd $HOME/SteamDeckGyroDSUSetup
 echo "Running install script..."
 echo " "
 ./install.sh
-exit $?
+code=$?
+
+cd
+rm -rf $HOME/SteamDeckGyroDSUSetup
+
+exit $code
