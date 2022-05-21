@@ -22,7 +22,7 @@ namespace kmicki::hiddev
 
     HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
     :   frameLen(_frameLen),
-        frame(_frameLen),frameDelivered(false),
+        frame(_frameLen),frameDelivered(true),
         stopTask(false),stopMetro(false),stopRead(false),
         scanPeriod(scanTime),
         inputStream(nullptr),
