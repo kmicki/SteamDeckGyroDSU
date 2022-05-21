@@ -253,7 +253,7 @@ namespace kmicki::cemuhook
 
     void Server::sendTask(sockaddr_in sockInClient, uint32_t id)
     {
-        std::cout << "Server: Initiaiting frame grab start." << std::endl;
+        std::cout << "Server: Initiating frame grab start." << std::endl;
         motionSource.StartFrameGrab();
 
         std::pair<uint16_t , void const*> outBuf;

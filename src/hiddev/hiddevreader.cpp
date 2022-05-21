@@ -221,6 +221,8 @@ namespace kmicki::hiddev
 
         stopRead = stopMetro = false;
 
+        frameDelivered = true;
+
         std::unique_ptr<std::thread> readThread(new std::thread(&HidDevReader::readTask,this,&buf));
         auto handle = readThread->native_handle();
         std::thread metronome(&HidDevReader::Metronome,this);

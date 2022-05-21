@@ -113,7 +113,7 @@ namespace kmicki::sdgyrodsu
                 if(lastInc != 0 && (diff = inc - lastInc) > 1)
                     { LogF msg; msg << "CemuhookAdapter: Missed " << (diff-1) << " frames."; }
 
-                // TODO: replicate frames
+                // TODO: replicate frames here!
                 lastInc = inc;
 
                 SetMotionData(GetSdFrame(frame),data);
