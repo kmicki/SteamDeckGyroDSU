@@ -14,7 +14,7 @@ namespace kmicki::hiddev
         frame(_frameLen),
         scanPeriod(scanTime),
         mainMutex(),frameMutex(),clientDeliveredMutex(),startStopMutex(),
-        readTaskMutex(),stopMetroMutex(),
+        readTaskMutex(),stopMetroMutex(),tickMutex(),
         readTaskProceed(),frameProceed(),newFrameProceed(),nextFrameProceed(),
         frameLockClients(),frameDeliveredClients()
     {
@@ -176,10 +176,14 @@ namespace kmicki::hiddev
         std::unique_lock<std::mutex> lock(readTaskMutex);
         while(!stopRead)
         {
-            readTaskProceed.wait(lock,[&] { return readTick && !hidDataReady; });
-            readTick=false;
-
+            readTaskProceed.wait(lock,[&] { return !hidDataReady; });
             lock.unlock();
+
+            {
+                std::unique_lock<std::mutex> tickLock(tickMutex);
+                readTaskProceed.wait(tickLock,[&] { return readTick; });
+                readTick=false;
+            }
 
             inputStream->read(buf->data(),buf->size());
 
@@ -202,7 +206,7 @@ namespace kmicki::hiddev
             stopLock.unlock();
             std::this_thread::sleep_for(scanPeriod);
             {
-                std::lock_guard<std::mutex> lock(readTaskMutex);
+                std::lock_guard<std::mutex> lock(tickMutex);
                 readTick = true;
             }
             readTaskProceed.notify_all();

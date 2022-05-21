@@ -91,6 +91,7 @@ namespace kmicki::hiddev
         std::mutex startStopMutex;                      // starting/stopping frame grab
         std::mutex readTaskMutex;                       // stopping read task/reading data from HID
         std::mutex stopMetroMutex;                      // stopping metronome
+        std::mutex tickMutex;                           // metronome tick
 
         // Condition variables
         std::condition_variable readTaskProceed; 
