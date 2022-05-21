@@ -123,6 +123,7 @@ namespace kmicki::hiddev
         std::chrono::microseconds bigLossDuration;
         std::chrono::system_clock::time_point lastAnalyzedFrameLossTime;
         bool passedNoLossAnalysis;
+        int inputReconnected;
 
         // Clients reading frame data
         std::vector<void*> frameLockClients;        // clients that acquired frame data but didn't signal unlock yet

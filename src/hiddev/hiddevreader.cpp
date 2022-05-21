@@ -152,6 +152,7 @@ namespace kmicki::hiddev
 
     void HidDevReader::reconnectInput(std::ifstream & stream, std::string path)
     {
+        std::cout << "Reconnecting input..." << std::endl;
         stream.close();
         stream.clear();
         stream.open(path);
@@ -214,6 +215,23 @@ namespace kmicki::hiddev
         // Constants
         static const int cMaxLossPeriod = 10000;
         static const std::chrono::seconds lossAnalysisMinWindow(1);     // Minimum time between frame losses to execute loss analysis
+
+        if(lastInc == 0)
+            return false;
+
+        if(inputReconnected > 0)
+        {
+            --inputReconnected;
+            if (diff > 1)
+            {
+                inputReconnected = 0;
+                scanPeriod += std::chrono::microseconds(10);
+                std::cout << "Changed scan period to : " << scanPeriod.count() << " us" << std::endl;
+                lossPeriod = 0;
+                lossAnalysis = false;
+                return diff > 1 && lastInc > 0 && diff <= 40;
+            }
+        }
         
         if(passedNoLossAnalysis || std::chrono::system_clock::now()-lastAnalyzedFrameLossTime > lossAnalysisMinWindow)
         {
@@ -238,7 +256,7 @@ namespace kmicki::hiddev
                     if(smallLossEncountered || !lossAnalysis)
                         --scanPeriod;
                     else
-                        scanPeriod -= std::chrono::microseconds(std::max(1,(6000-lossPeriod)/100));
+                        scanPeriod -= std::chrono::microseconds(std::min(10,std::max(1,(6000-lossPeriod)/100)));
                     std::cout << "Changed scan period to : " << scanPeriod.count() << " us" << std::endl;
                     lossAnalysis = true;
                     result = true;
@@ -274,6 +292,7 @@ namespace kmicki::hiddev
         smallLossEncountered = false;
         lastAnalyzedFrameLossTime = std::chrono::system_clock::now();
         passedNoLossAnalysis = false; // Flag that minimum window between lost frames has passed in order to execute loss analysis
+        inputReconnected = 0;
     }
 
     template<class Mutex,class CondVar,class Rep, class Period, class Predicate>
@@ -289,6 +308,8 @@ namespace kmicki::hiddev
         static const std::chrono::milliseconds readTaskKillTime(300);   // Time between signaling read task to stop and attempting to force kill the thread.
         // readTask sometimes hangs on reading from hiddev file forever. This has to be detected and thread needs to be killed forcefully.
         static const std::chrono::milliseconds readTaskTimeout(5);      // Timeout of readTask - means that reading from hiddev file hangs
+
+        IntializeLossAnalysis();
 
         // HID Data Buffers
         auto bufferLength = cInputRecordLen*frameLen;
@@ -343,6 +364,7 @@ namespace kmicki::hiddev
                 {
                     std::lock_guard lock(readTaskMutex);
                     reconnectInput(*inputStream,inputFilePath);
+                    inputReconnected = 10;
                     hidDataReady = false; readTick = true;
                 }
                 readTaskProceed.notify_all();
@@ -367,6 +389,9 @@ namespace kmicki::hiddev
 
             uint32_t & newInc = *reinterpret_cast<uint32_t *>(frame.data()+4);
             auto diff = newInc - lastInc;
+
+            if(diff > 1 && lastInc != 0)
+                std::cout << "Lost " << (diff-1) << " frames." << std::endl;
 
             if(LossAnalysis(diff))
             {
