@@ -188,9 +188,6 @@ namespace kmicki::hiddev
             inputStream->read(buf->data(),buf->size());
 
             lock.lock();
-
-            if(stopRead)
-                break;
             hidDataReady = true;
             lock.unlock();
             readTaskProceed.notify_all();
@@ -223,12 +220,12 @@ namespace kmicki::hiddev
         if(lastInc == 0)
             return false;
 
-        if(inputReconnected > 0)
+        if(readStuck > 0)
         {
-            --inputReconnected;
+            --readStuck;
             if (diff > 1)
             {
-                inputReconnected = 0;
+                readStuck = 0;
                 scanPeriod += std::chrono::microseconds(10);
                 std::cout << "Changed scan period to : " << scanPeriod.count() << " us" << std::endl;
                 lossPeriod = 0;
@@ -296,7 +293,7 @@ namespace kmicki::hiddev
         smallLossEncountered = false;
         lastAnalyzedFrameLossTime = std::chrono::system_clock::now();
         passedNoLossAnalysis = false; // Flag that minimum window between lost frames has passed in order to execute loss analysis
-        inputReconnected = 0;
+        readStuck = 0;
     }
 
     template<class Mutex,class CondVar,class Rep, class Period, class Predicate>
@@ -335,8 +332,12 @@ namespace kmicki::hiddev
         {
             mainLock.unlock();
 
+            
+
             if(!WaitForSignal(readTaskMutex,readTaskProceed,[&] { return hidDataReady; },readTaskTimeout))
             {
+                std::cout << "Read stuck." << std::endl;
+                readStuck = 10;
                 {
                     std::lock_guard lock(readTaskMutex);
                     stopRead = true;
@@ -354,6 +355,7 @@ namespace kmicki::hiddev
                     if(!hidDataReady)
                         readTick = true;
                 }
+                reconnectInput(*inputStream,inputFilePath);
                 readThread.reset(new std::thread(&HidDevReader::readTask,this,std::cref(hidDataBuffer)));
                 handle = readThread->native_handle();
 
@@ -368,7 +370,7 @@ namespace kmicki::hiddev
                 {
                     std::lock_guard lock(readTaskMutex);
                     reconnectInput(*inputStream,inputFilePath);
-                    inputReconnected = 10;
+                    readStuck = 10;
                     hidDataReady = false; readTick = true;
                 }
                 readTaskProceed.notify_all();
@@ -378,7 +380,6 @@ namespace kmicki::hiddev
             }
 
             hidDataBuffer.swap(hidDataBufferProcess);
-
             {
                 std::lock_guard<std::mutex> lock(readTaskMutex);
                 hidDataReady = false;
