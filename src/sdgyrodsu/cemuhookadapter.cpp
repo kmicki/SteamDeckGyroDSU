@@ -1,9 +1,11 @@
 #include "cemuhookadapter.h"
 #include "sdhidframe.h"
+#include "log.h"
 
 #include <iostream>
 
 using namespace kmicki::cemuhook::protocol;
+using namespace kmicki::log;
 
 #define SD_SCANTIME_US 4000
 #define ACC_1G 0x4000
@@ -82,17 +84,18 @@ namespace kmicki::sdgyrodsu
     CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader)
     : reader(_reader)
     {
-        ;
+        Log("CemuhookAdapter: Initialized. Waiting for start of frame grab.");
     }
 
     void CemuhookAdapter::StartFrameGrab()
     {
+        lastInc = 0;
+        Log("CemuhookAdapter: Starting frame grab.");
         reader.Start();
     }
 
     MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
     {
-        static uint32_t lastInc = 0;
         while(true)
         {
             auto const& frame = reader.GetNewFrame();
@@ -101,10 +104,16 @@ namespace kmicki::sdgyrodsu
 
             if(inc <= lastInc && lastInc-inc < 40)
             {
+                Log("CemuhookAdapter: Frame was repeated. Ignoring...");
                 reader.UnlockFrame();
             }
             else
             {
+                int64_t diff;
+                if(lastInc != 0 && (diff = inc - lastInc) > 1)
+                    { LogF msg; msg << "CemuhookAdapter: Missed " << (diff-1) << " frames."; }
+
+                // TODO: replicate frames
                 lastInc = inc;
 
                 SetMotionData(GetSdFrame(frame),data);
@@ -116,6 +125,7 @@ namespace kmicki::sdgyrodsu
 
     void CemuhookAdapter::StopFrameGrab()
     {
+        Log("CemuhookAdapter: Stopping frame grab.");
         reader.Stop();
     }
 

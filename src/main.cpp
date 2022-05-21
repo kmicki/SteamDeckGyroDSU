@@ -5,6 +5,7 @@
 #include "cemuhookprotocol.h"
 #include "cemuhookserver.h"
 #include "cemuhookadapter.h"
+#include "log.h"
 #include <iostream>
 #include <future>
 
@@ -16,7 +17,7 @@ bool showIncrement = false;
 #define FRAME_LEN 64
 #define SCAN_PERIOD_US 3945
 
-#define VERSION "1.9"
+#define VERSION "1.9-1"
 
 #define VID 0x28de
 #define PID 0x1205
@@ -26,6 +27,7 @@ typedef HidDevReader::frame_t frame_t;
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
+using namespace kmicki::log;
 
 static std::exception_ptr teptr = nullptr;
 
@@ -39,16 +41,16 @@ void WaitForKey()
 
 int main()
 {
-    std::cout << "Version: " << VERSION << std::endl;
+    { LogF msg; msg << "SteamDeckGyroDSU Version: " << VERSION; }
     // Steam Deck controls: usb device VID: 28de, PID: 1205
     int hidno = FindHidDevNo(VID,PID);
     if(hidno < 0) 
     {
-        std::cerr << "Device not found." << std::endl;
+        Log("Steam Deck Controls' HID device not found.");
         return 0;
     }
 
-    std::cout << "Found hiddev" << hidno << std::endl;
+    { LogF msg; msg << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
     
     HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_US);
     CemuhookAdapter adapter(reader);
@@ -64,7 +66,7 @@ int main()
         {
             if(reader.IsStarted() || stopping > 5)
             {
-                std::cout << "Framegrab is stuck. Aborting." << std::endl;
+                Log("Framegrab is stuck. Aborting...");
                 std::abort();
             }
             if(reader.IsStopping())

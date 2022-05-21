@@ -1,12 +1,15 @@
 #include "cemuhookserver.h"
+#include "log.h"
 
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 #include <stdexcept>
 #include <unistd.h>
 #include <iostream>
 
 using namespace kmicki::sdgyrodsu;
+using namespace kmicki::log;
 
 #define PORT 26760
 #define BUFLEN 100
@@ -20,6 +23,10 @@ using namespace kmicki::sdgyrodsu;
 
 namespace kmicki::cemuhook
 {
+    const char * GetIP(sockaddr_in const& addr, char *buf)
+    {
+        return inet_ntop(addr.sin_family,&(addr.sin_addr.s_addr),buf,INET6_ADDRSTRLEN);
+    }
 
     uint32_t crc32(const unsigned char *s,size_t n) {
         uint32_t crc=0xFFFFFFFF;
@@ -54,7 +61,7 @@ namespace kmicki::cemuhook
 
     void Server::Start() 
     {
-        std::cout << "Cemuhook Server: Initializing." << std::endl;
+        Log("Server: Initializing.");
         if(serverThread.get() != nullptr)
         {
             stop = true;
@@ -70,7 +77,7 @@ namespace kmicki::cemuhook
         setsockopt(socketFd, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof(read_timeout));
 
         if(socketFd == -1)
-            throw std::runtime_error("Socket could not be created.");
+            throw std::runtime_error("Server: Socket could not be created.");
         
         sockaddr_in sockInServer;
 
@@ -81,14 +88,19 @@ namespace kmicki::cemuhook
         sockInServer.sin_addr.s_addr = INADDR_ANY;
 
         if(bind(socketFd, (sockaddr*)&sockInServer, sizeof(sockInServer)) < 0)
-            throw std::runtime_error("Bind failed.");
+            throw std::runtime_error("Server: Bind failed.");
+
+        char ipStr[INET6_ADDRSTRLEN];
+        ipStr[0] = 0;
+        { LogF msg; msg << "Server: Socket created at IP: " << GetIP(sockInServer,ipStr) << " Port: " << ntohs(sockInServer.sin_port) << "."; }
 
         serverThread.reset(new std::thread(&Server::serverTask,this));
-        std::cout << "Cemuhook Server: Initialized." << std::endl;
+        Log("Server: Initialized.");
     }
 
     void Server::PrepareAnswerConstants()
     {
+        Log("Server: Pre-filling messages.");
         Header outHeader;
         outHeader.magic[0] = 'D';
         outHeader.magic[1] = 'S';
@@ -139,7 +151,7 @@ namespace kmicki::cemuhook
     void Server::serverTask()
     {
         char buf[BUFLEN];
-        sockaddr_in sockInClient,sendSockInClient;
+        sockaddr_in sockInClient,sendSockInClient,lastVersionClient,lastInfoClient;
         socklen_t sockInLen = sizeof(sockInClient);
 
         auto headerSize = (ssize_t)sizeof(Header);
@@ -149,8 +161,10 @@ namespace kmicki::cemuhook
         std::unique_ptr<std::thread> sendThread;
 
         int sendTimeout = 0;
+        char ipStr[INET6_ADDRSTRLEN];
+        ipStr[0] = 0;
 
-        std::cout << "Cemuhook Server: Start listening for client." << std::endl;
+        Log("Cemuhook Server: Start listening for client.");
 
         while(!stop)
         {
@@ -164,10 +178,22 @@ namespace kmicki::cemuhook
                 switch(header.eventType)
                 {
                     case VERSION_TYPE:
+                        if((sockInClient.sin_addr.s_addr != lastVersionClient.sin_addr.s_addr
+                               || sockInClient.sin_port != lastVersionClient.sin_port))
+                        {
+                            { LogF msg; msg << "Server: New client asked for version. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                            lastVersionClient = sockInClient;
+                        }
                         outBuf = PrepareVersionAnswer(header.id);
                         sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
                         break;
                     case INFO_TYPE:
+                        if((sockInClient.sin_addr.s_addr != lastInfoClient.sin_addr.s_addr
+                               || sockInClient.sin_port != lastInfoClient.sin_port))
+                        {
+                            { LogF msg; msg << "Server: New client asked for controller info. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                            lastInfoClient = sockInClient;
+                        }
                         {
                             InfoRequest & req = *reinterpret_cast<InfoRequest*>(buf+headerSize);
                             for (int i = 0; i < req.portCnt; i++)
@@ -182,6 +208,7 @@ namespace kmicki::cemuhook
                            && (sockInClient.sin_addr.s_addr != sendSockInClient.sin_addr.s_addr
                                || sockInClient.sin_port != sendSockInClient.sin_port))
                         {
+                            Log("Server: Request to subscribe from new client. Dropping current client.");
                             stopSending = true;
                             sendThread.get()->join();
                             //std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -189,7 +216,8 @@ namespace kmicki::cemuhook
                         }
                         if(sendThread.get() == nullptr)
                         {
-                            std::cout << "Cemuhook Server: Client subscribed to data events." << std::endl;
+                            { LogF msg; msg << "Server: New client subscribed. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+
                             stopSending = false;
                             sendThread.reset(new std::thread(&Server::sendTask,this,sockInClient, header.id));
                             sendSockInClient = sockInClient;
@@ -204,7 +232,7 @@ namespace kmicki::cemuhook
                 {       
                     if(sendThread.get() != nullptr)
                     {
-                        std::cout << "Cemuhook Server: No packet from client for some time. Stop sending data." << std::endl;
+                        std::cout << "Server: No packet from client for some time. Dropping current client." << std::endl;
                         stopSending = true;
                         sendThread.get()->join();
                         //std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -225,13 +253,13 @@ namespace kmicki::cemuhook
 
     void Server::sendTask(sockaddr_in sockInClient, uint32_t id)
     {
-        std::cout << "Cemuhook Server: Initiaiting frame grab start." << std::endl;
+        std::cout << "Server: Initiaiting frame grab start." << std::endl;
         motionSource.StartFrameGrab();
 
         std::pair<uint16_t , void const*> outBuf;
         uint32_t packet = 0;
 
-        std::cout << "Cemuhook Server: Start sending controller data." << std::endl;
+        std::cout << "Server: Start sending controller data." << std::endl;
 
         while(!stopSending)
         {
@@ -239,10 +267,10 @@ namespace kmicki::cemuhook
             sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
         }
 
-        std::cout << "Cemuhook Server: Initiating frame grab stop." << std::endl;
+        std::cout << "Server: Initiating frame grab stop." << std::endl;
 
         motionSource.StopFrameGrab();
-        std::cout << "Cemuhook Server: Stop sending controller data." << std::endl;
+        std::cout << "Server: Stop sending controller data." << std::endl;
     }
 
 

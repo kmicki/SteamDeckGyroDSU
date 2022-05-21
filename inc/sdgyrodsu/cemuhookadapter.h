@@ -26,7 +26,8 @@ namespace kmicki::sdgyrodsu
         private:
         cemuhook::protocol::MotionData data;
         hiddev::HidDevReader & reader;
-
+        
+        uint32_t lastInc = 0;
     };
 }
 

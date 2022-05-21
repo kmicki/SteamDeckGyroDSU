@@ -99,7 +99,7 @@ namespace kmicki::hiddev
 
         std::mutex startStopMutex;
 
-        bool LossAnalysis(uint32_t diff);
+        bool LossAnalysis(int64_t const& diff);
 
         int lossPeriod;
         bool lossAnalysis;
