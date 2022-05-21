@@ -36,7 +36,7 @@
 				"${workspaceFolder}/bin/sdgyrodsu"
 			],
 			"options": {
-				"cwd": "${fileDirname}"
+				"cwd": "${workspaceFolder}"
 			},
 			"problemMatcher": [
 				"$gcc"
