@@ -53,8 +53,5 @@ fi
 echo -e "Create \e[1mbin\e[0m directory..."
 mkdir -p bin >/dev/null
 
-echo -e "Clearing \e[1mbin\e[0m directory..."
-rm bin/* &>/dev/null
-
 exit 0
 

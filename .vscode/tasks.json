@@ -4,11 +4,53 @@
 		{
 			"type": "shell",
 			"label": "Prepare build",
-			"command": "${workspaceFolder}/prepare.sh",
+			"command": "${workspaceFolder}/prepare.sh"
 		},
 		{
 			"type": "cppbuild",
 			"label": "Build",
+			"dependsOn": "Prepare build",
+			"command": "/usr/bin/g++",
+			"args": [
+				"-std=c++2a",
+				"-O3",
+				"-fdiagnostics-color=always",
+				"$(find",
+				"${workspaceFolder}/inc",
+				"-type",
+				"d",
+				"-printf",
+				"'-I",
+				"%p\\n')",
+				"-g",
+				"$(find",
+				"${workspaceFolder}/src",
+				"-type",
+				"f",
+				"-iregex",
+				"'.*\\.cpp'",
+				"-printf",
+				"'%p\\n')",
+				"-pthread",
+				"-lncurses",
+				"-o",
+				"${workspaceFolder}/bin/sdgyrodsu"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: /usr/bin/g++"
+		},
+		{
+			"type": "cppbuild",
+			"label": "Build Debug",
 			"dependsOn": "Prepare build",
 			"command": "/usr/bin/g++",
 			"args": [
@@ -33,7 +75,7 @@
 				"-pthread",
 				"-lncurses",
 				"-o",
-				"${workspaceFolder}/bin/sdgyrodsu"
+				"${workspaceFolder}/bin/sdgyrodsu_dbg"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
