@@ -315,9 +315,9 @@ namespace kmicki::hiddev
     void HidDevReader::mainTask()
     {
         // Constants
-        static const std::chrono::milliseconds readTaskKillTime(300);   // Time between signaling read task to stop and attempting to force kill the thread.
+        static const std::chrono::microseconds readTaskKillTime(1);   // Time between signaling read task to stop and attempting to force kill the thread.
         // readTask sometimes hangs on reading from hiddev file forever. This has to be detected and thread needs to be killed forcefully.
-        static const std::chrono::milliseconds readTaskTimeout(8);      // Timeout of readTask - means that reading from hiddev file hangs
+        static const std::chrono::milliseconds readTaskTimeout(6);      // Timeout of readTask - means that reading from hiddev file hangs
 
         IntializeLossAnalysis();
 

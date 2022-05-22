@@ -297,6 +297,7 @@ namespace kmicki::cemuhook
                 std::lock_guard lock(socketSendMutex);
                 sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
             }
+            std::this_thread::sleep_for(std::chrono::microseconds(2));
             mainLock.lock();
         }
 
