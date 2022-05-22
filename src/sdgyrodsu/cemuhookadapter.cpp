@@ -39,15 +39,32 @@ namespace kmicki::sdgyrodsu
         return last/acc1G;
     }
 
+    MotionData & SetTimestamp(MotionData &data, uint64_t const& timestamp)
+    {
+        data.timestampL = (uint32_t)(timestamp & 0xFFFFFFFF);
+        data.timestampH = (uint32_t)(timestamp >> 32);
+
+        return data;
+    }
+
+    uint64_t ToTimestamp(uint32_t const& increment)
+    {
+        return (uint64_t)increment*SD_SCANTIME_US;
+    }
+
+    MotionData &  SetTimestamp(MotionData &data, uint32_t const& increment)
+    {
+        SetTimestamp(data,ToTimestamp(increment));
+
+        return data;
+    }
+
     void CemuhookAdapter::SetMotionData(SdHidFrame const& frame, MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
     {
         static const float acc1G = (float)ACC_1G;
         static const float gyro1dps = (float)GYRO_1DEGPERSEC;
 
-        uint64_t timestamp = (uint64_t)frame.Increment*SD_SCANTIME_US;
-
-        data.timestampL = (uint32_t)(timestamp & 0xFFFFFFFF);
-        data.timestampH = (uint32_t)(timestamp >> 32);
+        SetTimestamp(data, frame.Increment);
         
         data.accX = -SmoothAccel(lastAccelRtL,frame.AccelAxisRightToLeft);
         data.accY = -SmoothAccel(lastAccelFtB,frame.AccelAxisFrontToBack);
@@ -77,10 +94,11 @@ namespace kmicki::sdgyrodsu
         }
     }
 
-    CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader)
+    CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader, bool persistent)
     : reader(_reader),
       lastInc(0),
-      lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0)
+      lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),
+      isPersistent(persistent), toReplicate(0)
     {
         Log("CemuhookAdapter: Initialized. Waiting for start of frame grab.");
     }
@@ -92,31 +110,63 @@ namespace kmicki::sdgyrodsu
         reader.Start();
     }
 
-    MotionData const& CemuhookAdapter::GetMotionDataNewFrame()
+    int const& CemuhookAdapter::SetMotionDataNewFrame(MotionData &motion)
     {
+        static const int64_t cMaxDiffReplicate = 1000;
+
         while(true)
         {
-            auto const& frame = reader.GetNewFrame(this);
-
-            auto const& inc = *reinterpret_cast<uint32_t const*>(frame.data()+4);
-
-            if(inc <= lastInc && lastInc-inc < 40)
+            if(toReplicate == 0)
             {
-                Log("CemuhookAdapter: Frame was repeated. Ignoring...");
-                reader.UnlockFrame(this);
+                auto const& frame = GetSdFrame(reader.GetNewFrame(this));
+                int64_t diff = frame.Increment - lastInc;
+
+                if(lastInc != 0 && diff < 1 && diff > -100)
+                {
+                    reader.UnlockFrame(this);
+                    Log("CemuhookAdapter: Frame was repeated. Ignoring...");
+                }
+                else
+                {
+                    if(lastInc != 0 && diff > 1)
+                    {
+                        { LogF msg; msg << "CemuhookAdapter: Missed " << (diff-1) << " frames."; }
+                        if(diff <= cMaxDiffReplicate)
+                        {
+                            Log("CemuhookAdapter: Replicating frames...");
+                            toReplicate = diff-1;
+                        }
+                    }
+
+                    SetMotionData(frame,motion,lastAccelRtL,lastAccelFtB,lastAccelTtB);
+                    reader.UnlockFrame(this);
+
+                    if(toReplicate > 0)
+                    {
+                        lastTimestamp = ToTimestamp(lastInc+1);
+                        SetTimestamp(motion,lastTimestamp);
+                        if(!isPersistent)
+                            data = motion;
+                    }
+                        
+                    lastInc = frame.Increment;
+                    
+                    return toReplicate;
+                }
             }
             else
             {
-                int64_t diff;
-                if(lastInc != 0 && (diff = inc - lastInc) > 1)
-                    { LogF msg; msg << "CemuhookAdapter: Missed " << (diff-1) << " frames."; }
+                // Replicated frame
+                --toReplicate;
+                lastTimestamp += SD_SCANTIME_US;
+                if(!isPersistent)
+                {
+                    motion = SetTimestamp(data,lastTimestamp);
+                }
+                else
+                    SetTimestamp(motion,lastTimestamp);
 
-                // TODO: replicate frames here!
-                lastInc = inc;
-
-                SetMotionData(GetSdFrame(frame),data,lastAccelRtL,lastAccelFtB,lastAccelTtB);
-                reader.UnlockFrame(this);
-                return data;
+                return toReplicate;
             }
         }
     }

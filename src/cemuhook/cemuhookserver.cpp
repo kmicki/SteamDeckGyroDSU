@@ -292,7 +292,7 @@ namespace kmicki::cemuhook
         while(!stopSending)
         {
             mainLock.unlock();
-            outBuf = PrepareDataAnswer(id,packet++);
+            outBuf = PrepareDataAnswer(id,++packet);
             {
                 std::lock_guard lock(socketSendMutex);
                 sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
@@ -344,7 +344,7 @@ namespace kmicki::cemuhook
         
         dataAnswer.header.id = id;
         dataAnswer.packetNumber = packet;
-        dataAnswer.motion = motionSource.GetMotionDataNewFrame();
+        motionSource.SetMotionDataNewFrame(dataAnswer.motion);
         
         dataAnswer.header.crc32 = 0;
         dataAnswer.header.crc32 = crc32(reinterpret_cast<unsigned char *>(&dataAnswer),len);

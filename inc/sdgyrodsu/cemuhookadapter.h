@@ -12,10 +12,14 @@ namespace kmicki::sdgyrodsu
         public:
         CemuhookAdapter() = delete;
 
-        CemuhookAdapter(hiddev::HidDevReader & _reader);
+        CemuhookAdapter(hiddev::HidDevReader & _reader, bool persistent = true);
 
         void StartFrameGrab();
-        cemuhook::protocol::MotionData const& GetMotionDataNewFrame();
+
+        // Modifies motion data in place.
+        // Returns number if frames to be replicated in next calls (in case of missing frames).
+        // persistent: true when motion structure is not modified between calls.
+        int const& SetMotionDataNewFrame(cemuhook::protocol::MotionData &motion);
         void StopFrameGrab();
 
         bool IsControllerConnected();
@@ -24,15 +28,19 @@ namespace kmicki::sdgyrodsu
         static void SetMotionData(SdHidFrame const& frame, cemuhook::protocol::MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
 
         private:
+        bool isPersistent;
+
         cemuhook::protocol::MotionData data;
         hiddev::HidDevReader & reader;
 
         uint32_t lastInc;
+        uint64_t lastTimestamp;
         
         float lastAccelRtL;
         float lastAccelFtB;
         float lastAccelTtB;
 
+        int toReplicate;
     };
 }
 
