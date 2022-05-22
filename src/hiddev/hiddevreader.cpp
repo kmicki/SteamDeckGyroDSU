@@ -234,7 +234,7 @@ namespace kmicki::hiddev
             if (diff > 1)
             {
                 readStuck = 0;
-                scanPeriod += std::chrono::microseconds(10);
+                scanPeriod += std::chrono::microseconds(std::min(200,std::max(1,(6000-lossPeriod)/800)));
                 { LogF msg; msg << "Changed scan period to : " << scanPeriod.count() << " us"; }
                 lossPeriod = 0;
                 lossAnalysis = false;
@@ -263,11 +263,11 @@ namespace kmicki::hiddev
             {
                 if(diff > 25)
                 {
-                    if(smallLossEncountered || !lossAnalysis)
-                        --scanPeriod;
-                    else
-                        scanPeriod -= std::chrono::microseconds(std::min(10,std::max(1,(6000-lossPeriod)/100)));
-                    { LogF msg; msg << "HidDevReader: Changed scan period to : " << scanPeriod.count() << " us"; }
+                    if(lossAnalysis)
+                    {
+                        scanPeriod -= std::chrono::microseconds(std::min(200,std::max(1,(6000-lossPeriod)/400)));
+                        { LogF msg; msg << "HidDevReader: Changed scan period to : " << scanPeriod.count() << " us"; }
+                    }
                     lossAnalysis = true;
                     result = true;
                 }
@@ -400,56 +400,25 @@ namespace kmicki::hiddev
             }
             readTaskProceed.notify_all();
             
-            std::unique_lock frameLock(frameMutex);
-
-            nextFrameProceed.wait(frameLock,[&] { return frameLockClients.empty(); } );
-
-            processData(*hidDataBufferProcess);
-
-            uint32_t & newInc = *reinterpret_cast<uint32_t *>(frame.data()+4);
-            int64_t diff = newInc - lastInc;
-
-            if(lastInc != 0)
             {
-                if(diff > 1)
-                    { LogF msg; msg << "HidDevReader: Missed " << (diff-1) << " frames."; }
-                else if(diff == 0)
-                    Log("HidDevReader: Last frame repeated.");
-                else if(diff < 0)
-                    { LogF msg; msg << "HidDevReader: Frame " << diff << " repeated."; }
+                std::unique_lock frameLock(frameMutex);
+                nextFrameProceed.wait(frameLock,[&] { return frameLockClients.empty(); } );
+                processData(*hidDataBufferProcess);
             }
-
-            if(LossAnalysis(diff))
-            {
-                newInc = lastInc+1;
-                // Fill with generated frames to avoid jitter
-                auto fillPeriod = std::chrono::microseconds(2000/(diff-1));//3000/(diff-1));
-
-                Log("HidDevReader: Replicating missing frames.");
-
-                for (int i = 0; i < diff-1; i++)
-                {
-                    {
-                        std::lock_guard lock(clientDeliveredMutex);
-                        frameDeliveredClients.clear();
-                    }
-                    newFrameProceed.notify_all();
-                    frameLock.unlock();
-                    std::this_thread::sleep_for(fillPeriod);
-                    frameLock.lock();
-                    nextFrameProceed.wait(frameLock,[&] { return frameLockClients.empty(); } );
-                    ++newInc;
-                }
-            }
-
-            lastInc = newInc;
 
             {
                 std::lock_guard lock(clientDeliveredMutex);
                 frameDeliveredClients.clear();
             }
             newFrameProceed.notify_all();
-            frameLock.unlock();
+
+            uint32_t & newInc = *reinterpret_cast<uint32_t *>(frame.data()+4);
+            int64_t diff = newInc - lastInc;
+
+            LossAnalysis(diff);
+
+            lastInc = newInc;
+
             mainLock.lock();
         }
         {

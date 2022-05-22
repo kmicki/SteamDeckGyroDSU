@@ -3,6 +3,7 @@
 #include "log.h"
 
 #include <iostream>
+#include <iomanip>
 
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::log;
@@ -119,7 +120,7 @@ namespace kmicki::sdgyrodsu
             if(toReplicate == 0)
             {
                 auto const& frame = GetSdFrame(reader.GetNewFrame(this));
-                int64_t diff = frame.Increment - lastInc;
+                int64_t diff = (int64_t)frame.Increment - (int64_t)lastInc;
 
                 if(lastInc != 0 && diff < 1 && diff > -100)
                 {
@@ -131,6 +132,9 @@ namespace kmicki::sdgyrodsu
                     if(lastInc != 0 && diff > 1)
                     {
                         { LogF msg; msg << "CemuhookAdapter: Missed " << (diff-1) << " frames."; }
+                        if(diff > 1000)
+                            { LogF msg; msg << std::setw(8) << std::setfill('0') << std::setbase(16);
+                              msg << "Current increment: 0x" << frame.Increment << ". Last: 0x" << lastInc << "."; }
                         if(diff <= cMaxDiffReplicate)
                         {
                             Log("CemuhookAdapter: Replicating frames...");
