@@ -1,5 +1,5 @@
 # Required packages
-declare -a dependencies=("gcc" "glibc" "linux-api-headers" "ncurses")
+declare -a dependencies=("gcc" "glibc" "linux-api-headers" "ncurses" "usbutils")
 
 # Some header file for each package.
 # SteamOS has all required packages installed by default but for some reason header files are missing.
@@ -9,6 +9,7 @@ declare -a checks=(
     "/usr/include/errno.h"
     "/usr/include/linux/can/error.h"
     "/usr/include/ncurses.h"
+    "/usr/bin/lsusb"
 )
 declare -a reinstall
 common_reinstall=false
