@@ -14,12 +14,12 @@ declare -a reinstall
 common_reinstall=false
 
 for i in ${!checks[@]}; do
-    if [ ! -f "${checks[$i]}" ]; then
-        # header file is missing
-	reinstall[$i]=true
-        common_reinstall=true
-    else
+    if [ -f ${checks[$i]} ]; then
         reinstall[$i]=false
+    else
+        # header file is missing
+	    reinstall[$i]=true
+        common_reinstall=true
     fi
 done
 
