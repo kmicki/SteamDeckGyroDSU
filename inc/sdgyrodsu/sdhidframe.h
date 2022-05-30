@@ -2,7 +2,7 @@
 #define _KMICKI_SDGYRODSU_SDHIDFRAME_H_
 
 #include <cstdint>
-#include "hiddevreader.h"
+#include "hiddev/hiddevreader.h"
 
 namespace kmicki::sdgyrodsu
 {

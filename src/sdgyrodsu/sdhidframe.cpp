@@ -1,4 +1,4 @@
-#include "sdhidframe.h"
+#include "sdgyrodsu/sdhidframe.h"
 
 namespace kmicki::sdgyrodsu
 {

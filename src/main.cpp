@@ -1,11 +1,11 @@
-#include "hiddevreader.h"
-#include "hiddevfinder.h"
-#include "sdhidframe.h"
-#include "presenter.h"
-#include "cemuhookprotocol.h"
-#include "cemuhookserver.h"
-#include "cemuhookadapter.h"
-#include "log.h"
+#include "hiddev/hiddevreader.h"
+#include "hiddev/hiddevfinder.h"
+#include "sdgyrodsu/sdhidframe.h"
+#include "sdgyrodsu/presenter.h"
+#include "cemuhook/cemuhookprotocol.h"
+#include "cemuhook/cemuhookserver.h"
+#include "sdgyrodsu/cemuhookadapter.h"
+#include "log/log.h"
 #include <iostream>
 #include <future>
 #include <thread>
@@ -42,20 +42,22 @@ void WaitForKey()
 
 void PresenterRun(HidDevReader * reader)
 {
+    auto & frameServe = reader->GetServe();
+    auto const& data = frameServe.GetPointer();
     int temp;
     void* tempPtr = reinterpret_cast<void*>(&temp);
     Presenter::Initialize();
     while(!stop)
     {
-        Presenter::Present(GetSdFrame(reader->GetNewFrame(tempPtr)));
-        reader->UnlockFrame(tempPtr);
+        auto lock = frameServe.GetConsumeLock();
+        Presenter::Present(GetSdFrame(*data));
     }
     Presenter::Finish();
 }
 
 int main()
 {
-    { LogF msg; msg << "SteamDeckGyroDSU Version: " << VERSION; }
+    { LogF() << "SteamDeckGyroDSU Version: " << VERSION; }
     // Steam Deck controls: usb device VID: 28de, PID: 1205
     int hidno = FindHidDevNo(VID,PID);
     if(hidno < 0) 
@@ -64,7 +66,7 @@ int main()
         return 0;
     }
 
-    { LogF msg; msg << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
+    { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
     
     HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_US);
     CemuhookAdapter adapter(reader);
@@ -77,23 +79,23 @@ int main()
 
     while(true) {
         std::this_thread::sleep_for(std::chrono::seconds(5));
-        uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(reader.Frame().data()+4);
-        if(newInc == lastInc)
-        {
-            if(reader.IsStarted() || stopping > 5)
-            {
-                Log("Framegrab is stuck. Aborting...");
-                std::abort();
-            }
-            if(reader.IsStopping())
-                ++stopping;
-        }
-        if(!reader.IsStarted() && !reader.IsStopping())
-            lastInc = 0;
-        else
-            lastInc = newInc;
-        if(!reader.IsStopping())
-            stopping = 0;
+        // uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(reader.Frame().data()+4);
+        // if(newInc == lastInc)
+        // {
+        //     if(reader.IsStarted() || stopping > 5)
+        //     {
+        //         Log("Framegrab is stuck. Aborting...");
+        //         std::abort();
+        //     }
+        //     if(reader.IsStopping())
+        //         ++stopping;
+        // }
+        // if(!reader.IsStarted() && !reader.IsStopping())
+        //     lastInc = 0;
+        // else
+        //     lastInc = newInc;
+        // if(!reader.IsStopping())
+        //     stopping = 0;
     }
 
     return 0;

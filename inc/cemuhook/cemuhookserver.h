@@ -1,7 +1,7 @@
 #ifndef _KMICKI_CEMUHOOK_CEMUHOOKSERVER_H_
 #define _KMICKI_CEMUHOOK_CEMUHOOKSERVER_H_
 
-#include "cemuhookadapter.h"
+#include "sdgyrodsu/cemuhookadapter.h"
 #include "cemuhookprotocol.h"
 #include <thread>
 #include <netinet/in.h>

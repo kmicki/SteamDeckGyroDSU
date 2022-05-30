@@ -11,7 +11,7 @@ namespace kmicki::log
 
         // class for logging formatted message
         // Behaves like output stream and message gets logged on destruction.
-        // Usage: { LogF msg; msg << "This is an example message number " << nr << "!"; }
+        // Usage: { LogF() << "This is an example message number " << nr << "!"; }
         class LogF : public std::stringstream
         {
             public:

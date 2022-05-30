@@ -1,5 +1,5 @@
-#include "hiddevfinder.h"
-#include "shell.h"
+#include "hiddev/hiddevfinder.h"
+#include "shell/shell.h"
 #include <sstream>
 #include <iomanip>
     

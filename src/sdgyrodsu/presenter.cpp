@@ -1,5 +1,5 @@
-#include "presenter.h"
-#include "cemuhookadapter.h"
+#include "sdgyrodsu/presenter.h"
+#include "sdgyrodsu/cemuhookadapter.h"
 
 #include <ncurses.h>
 

@@ -1,5 +1,5 @@
-#include "cemuhookserver.h"
-#include "log.h"
+#include "cemuhook/cemuhookserver.h"
+#include "log/log.h"
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -99,7 +99,7 @@ namespace kmicki::cemuhook
 
         char ipStr[INET6_ADDRSTRLEN];
         ipStr[0] = 0;
-        { LogF msg; msg << "Server: Socket created at IP: " << GetIP(sockInServer,ipStr) << " Port: " << ntohs(sockInServer.sin_port) << "."; }
+        { LogF() << "Server: Socket created at IP: " << GetIP(sockInServer,ipStr) << " Port: " << ntohs(sockInServer.sin_port) << "."; }
 
         stop = false;
         serverThread.reset(new std::thread(&Server::serverTask,this));
@@ -191,7 +191,7 @@ namespace kmicki::cemuhook
                         if((sockInClient.sin_addr.s_addr != lastVersionClient.sin_addr.s_addr
                                || sockInClient.sin_port != lastVersionClient.sin_port))
                         {
-                            { LogF msg; msg << "Server: New client asked for version. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                            { LogF() << "Server: New client asked for version. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
                             lastVersionClient = sockInClient;
                         }
                         outBuf = PrepareVersionAnswer(header.id);
@@ -204,7 +204,7 @@ namespace kmicki::cemuhook
                         if((sockInClient.sin_addr.s_addr != lastInfoClient.sin_addr.s_addr
                                || sockInClient.sin_port != lastInfoClient.sin_port))
                         {
-                            { LogF msg; msg << "Server: New client asked for controller info. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                            { LogF() << "Server: New client asked for controller info. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
                             lastInfoClient = sockInClient;
                         }
                         {
@@ -235,7 +235,7 @@ namespace kmicki::cemuhook
                         }
                         if(sendThread.get() == nullptr)
                         {
-                            { LogF msg; msg << "Server: New client subscribed. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                            { LogF() << "Server: New client subscribed. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
 
                             stopSending = false;
                             sendThread.reset(new std::thread(&Server::sendTask,this,sockInClient, header.id));

@@ -2,8 +2,9 @@
 #define _KMICKI_SDGYRODSU_CEMUHOOKADAPTER_H_
 
 #include "sdhidframe.h"
-#include "cemuhookprotocol.h"
-#include "hiddevreader.h"
+#include "cemuhook/cemuhookprotocol.h"
+#include "hiddev/hiddevreader.h"
+#include "pipeline/serve.h"
 
 namespace kmicki::sdgyrodsu
 {
@@ -41,6 +42,8 @@ namespace kmicki::sdgyrodsu
         float lastAccelTtB;
 
         int toReplicate;
+
+        pipeline::Serve<hiddev::HidDevReader::frame_t> * frameServe;
     };
 }
 
