@@ -16,7 +16,7 @@ using namespace kmicki::log;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
 
-const LogLevel cLogLevel = LogLevelTrace; // change to Default when configuration is possible
+const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 const bool cRunPresenter = false;
 
 const int cFrameLen = 64;

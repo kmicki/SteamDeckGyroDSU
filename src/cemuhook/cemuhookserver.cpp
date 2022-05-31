@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <unistd.h>
 #include <iostream>
+#include <algorithm>
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::log;
@@ -43,7 +44,7 @@ namespace kmicki::cemuhook
 
     Server::Server(CemuhookAdapter & _motionSource)
         : motionSource(_motionSource), stop(false), serverThread(), stopSending(false),
-          mainMutex(), stopSendMutex(), socketSendMutex()
+          mainMutex(), stopSendMutex(), socketSendMutex(), checkTimeout(false)
     {
         PrepareAnswerConstants();
         Start();
@@ -156,10 +157,60 @@ namespace kmicki::cemuhook
         }
     }
 
+    ssize_t SendPacket(int const& socketFd, std::pair<uint16_t , void const*> const& outBuf, sockaddr_in const& sockInClient)
+    {
+        return sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
+    }
+
+    void Server::CheckClientTimeout(std::unique_ptr<std::thread> & sendThread, bool increment)
+    {
+        static const int cSendTimeout = 3;
+
+        char ipStr[INET6_ADDRSTRLEN];
+        ipStr[0] = 0;
+
+        {
+            std::lock_guard lock(clientsMutex);
+            checkTimeout = false;
+            auto client = clients.begin();
+            while(client != clients.end())
+            {
+                if(increment)
+                    ++client->sendTimeout;
+                if(client->sendTimeout > cSendTimeout)
+                {       
+                    { LogF() << "Server: No packet from client for some time. IP: " << GetIP(client->address,ipStr) << " Port: " << ntohs(client->address.sin_port); }
+
+                    client = clients.erase(client);
+                }
+                else
+                {
+                    ++client;
+                }
+            }
+        }
+        {
+            std::shared_lock clientsLock(clientsMutex);
+            if(sendThread.get() != nullptr && clients.empty())
+            {
+                clientsLock.unlock();
+                Log("Server: No more clients. Stop sending data.");
+                {
+                    std::lock_guard lock(stopSendMutex);
+                    stopSending = true;
+                }
+                sendThread.get()->join();
+                sendThread.reset();
+            }
+        }
+
+    }
+
     void Server::serverTask()
     {
+
         char buf[BUFLEN];
-        sockaddr_in sockInClient,sendSockInClient,lastVersionClient,lastInfoClient;
+        sockaddr_in sockInClient;
         socklen_t sockInLen = sizeof(sockInClient);
 
         auto headerSize = (ssize_t)sizeof(Header);
@@ -168,7 +219,6 @@ namespace kmicki::cemuhook
 
         std::unique_ptr<std::thread> sendThread;
 
-        int sendTimeout = 0;
         char ipStr[INET6_ADDRSTRLEN];
         ipStr[0] = 0;
 
@@ -181,32 +231,25 @@ namespace kmicki::cemuhook
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
             auto recvLen = recvfrom(socketFd,buf,BUFLEN,0,(sockaddr*) &sockInClient, &sockInLen);
             if(recvLen >= headerSize)
-            {
-                sendTimeout = 0;
+            {                
                 Header & header = *reinterpret_cast<Header*>(buf);
+
+                std::ostringstream addressTextStream;
+                addressTextStream << "IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port);
+                auto addressText = addressTextStream.str();
 
                 switch(header.eventType)
                 {
                     case VERSION_TYPE:
-                        if((sockInClient.sin_addr.s_addr != lastVersionClient.sin_addr.s_addr
-                               || sockInClient.sin_port != lastVersionClient.sin_port))
-                        {
-                            { LogF(LogLevelDebug) << "Server: New client asked for version. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
-                            lastVersionClient = sockInClient;
-                        }
+                        { LogF(LogLevelTrace) << "Server: A client asked for version. " << addressText << "."; }
                         outBuf = PrepareVersionAnswer(header.id);
                         {
                             std::lock_guard lock(socketSendMutex);
-                            sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
+                            SendPacket(socketFd,outBuf,sockInClient);
                         }
                         break;
                     case INFO_TYPE:
-                        if((sockInClient.sin_addr.s_addr != lastInfoClient.sin_addr.s_addr
-                               || sockInClient.sin_port != lastInfoClient.sin_port))
-                        {
-                            { LogF(LogLevelDebug) << "Server: New client asked for controller info. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
-                            lastInfoClient = sockInClient;
-                        }
+                        { LogF(LogLevelTrace) << "Server: A client asked for controller info. " << addressText << "."; }
                         {
                             InfoRequest & req = *reinterpret_cast<InfoRequest*>(buf+headerSize);
                             for (int i = 0; i < req.portCnt; i++)
@@ -214,59 +257,62 @@ namespace kmicki::cemuhook
                                 outBuf = PrepareInfoAnswer(header.id, req.slots[i]);
                                 {
                                     std::lock_guard lock(socketSendMutex);
-                                    sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sockInLen);
+                                    SendPacket(socketFd,outBuf,sockInClient);
                                 }
                             }
                         }
                         break;
                     case DATA_TYPE:
-                        if(sendThread.get() != nullptr 
-                           && (sockInClient.sin_addr.s_addr != sendSockInClient.sin_addr.s_addr
-                               || sockInClient.sin_port != sendSockInClient.sin_port))
-                        {
-                            Log("Server: Request to subscribe from new client. Dropping current client.",LogLevelDebug);
+                        {                           
+                            std::shared_lock sharedLock(clientsMutex);
+                            auto client = std::find(clients.begin(),clients.end(),sockInClient);
+                            if(client == clients.end())
                             {
-                                std::lock_guard lock(stopSendMutex);
-                                stopSending = true;
-                            }
-                            sendThread.get()->join();
-                            //std::this_thread::sleep_for(std::chrono::seconds(1));
-                            sendThread.reset();
-                        }
-                        if(sendThread.get() == nullptr)
-                        {
-                            { LogF() << "Server: New client subscribed. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                                { LogF(LogLevelTrace) << "Server: Request for data from new client. " << addressText << "."; }
+                                sharedLock.unlock();
+                                {
+                                    std::lock_guard lock(clientsMutex);
+                                    auto& newClient = clients.emplace_back();
+                                    newClient.address = sockInClient;
+                                    newClient.id = header.id;
+                                    newClient.sendTimeout = 0;
+                                }
+                                { LogF() << "Server: New client subscribed. " << addressText << "."; }
 
-                            stopSending = false;
-                            sendThread.reset(new std::thread(&Server::sendTask,this,sockInClient, header.id));
-                            sendSockInClient = sockInClient;
+                                if(sendThread.get() == nullptr)
+                                {
+                                    stopSending = false;
+                                    sendThread.reset(new std::thread(&Server::sendTask,this));
+                                }
+                            }
+                            else
+                            {
+                                { LogF(LogLevelTrace) << "Server: Request for data from existing client. " << addressText << "."; }
+                                sharedLock.unlock();
+                                {
+                                    std::lock_guard lock(clientsMutex);
+                                    client->sendTimeout = 0;
+                                }
+                            }
                         }
                         break;
+                }
+                {
+                    std::shared_lock lock(clientsMutex);
+                    if(checkTimeout)
+                    {
+                        lock.unlock();
+                        CheckClientTimeout(sendThread,false);
+                    }
                 }
             }
             else 
             {
-                ++sendTimeout;
-                if(sendTimeout > SENDTIMEOUT_X)
-                {       
-                    if(sendThread.get() != nullptr)
-                    {
-                        Log("Cemuhook Server: No packet from client for some time. Stop sending data.");
-                        {
-                            std::lock_guard lock(stopSendMutex);
-                            stopSending = true;
-                        }
-                        sendThread.get()->join();
-                        //std::this_thread::sleep_for(std::chrono::seconds(1));
-                        sendThread.reset();
-                    }
-                    sendTimeout = 0;
-                }
-                    
-                    
+                CheckClientTimeout(sendThread,true);
             }
             mainLock.lock();
         }
+
         if(sendThread.get() != nullptr)
         {
             {
@@ -277,8 +323,10 @@ namespace kmicki::cemuhook
         }
     }
 
-    void Server::sendTask(sockaddr_in sockInClient, uint32_t id)
+    void Server::sendTask()
     {
+        static const uint32_t cTimeoutIncreasePeriod = 500;
+
         Log("Server: Initiating frame grab start.",LogLevelDebug);
         motionSource.StartFrameGrab();
 
@@ -292,10 +340,26 @@ namespace kmicki::cemuhook
         while(!stopSending)
         {
             mainLock.unlock();
-            outBuf = PrepareDataAnswer(id,++packet);
+            outBuf = PrepareDataAnswerWithoutCrc(0,++packet);
             {
-                std::lock_guard lock(socketSendMutex);
-                sendto(socketFd,outBuf.second,outBuf.first,0,(sockaddr*) &sockInClient, sizeof(sockInClient));
+                std::shared_lock lock(clientsMutex);
+                for(auto& client : clients)
+                {
+                    ModifyDataAnswerId(client.id);
+                    {
+                        std::lock_guard lock(socketSendMutex);
+                        SendPacket(socketFd,outBuf,client.address);
+                    }
+                }
+            }
+            if(packet % cTimeoutIncreasePeriod == 0)
+            {
+                std::lock_guard lock(clientsMutex);
+                for(auto& client : clients)
+                {
+                    ++client.sendTimeout;
+                }
+                checkTimeout = true;
             }
             std::this_thread::sleep_for(std::chrono::microseconds(2));
             mainLock.lock();
@@ -308,7 +372,7 @@ namespace kmicki::cemuhook
     }
 
 
-    std::pair<uint16_t , void const*> Server::PrepareVersionAnswer(uint32_t id)
+    std::pair<uint16_t , void const*> Server::PrepareVersionAnswer(uint32_t const& id)
     {
         static const uint16_t len = sizeof(versionAnswer);
 
@@ -318,7 +382,7 @@ namespace kmicki::cemuhook
             return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&versionAnswer));
     }
 
-    std::pair<uint16_t , void const*> Server::PrepareInfoAnswer(uint32_t id, uint8_t slot)
+    std::pair<uint16_t , void const*> Server::PrepareInfoAnswer(uint32_t const& id, uint8_t const& slot)
     {
         static const uint16_t len = sizeof(infoNoneAnswer);
 
@@ -339,7 +403,16 @@ namespace kmicki::cemuhook
         return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&infoDeckAnswer));
     }
 
-    std::pair<uint16_t , void const*> Server::PrepareDataAnswer(uint32_t id, uint32_t packet) 
+    std::pair<uint16_t , void const*> Server::PrepareDataAnswer(uint32_t const& id, uint32_t const& packet) 
+    {
+        static const uint16_t len = sizeof(dataAnswer);
+
+        PrepareDataAnswerWithoutCrc(id,packet);
+        CalcCrcDataAnswer();
+        return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&dataAnswer));
+    }
+
+    std::pair<uint16_t , void const*> Server::PrepareDataAnswerWithoutCrc(uint32_t const& id, uint32_t const& packet) 
     {
         static const uint16_t len = sizeof(dataAnswer);
         
@@ -347,11 +420,31 @@ namespace kmicki::cemuhook
         dataAnswer.packetNumber = packet;
         motionSource.SetMotionDataNewFrame(dataAnswer.motion);
         
-        dataAnswer.header.crc32 = 0;
-        dataAnswer.header.crc32 = crc32(reinterpret_cast<unsigned char *>(&dataAnswer),len);
         return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&dataAnswer));
-
     }
 
+    void Server::CalcCrcDataAnswer()
+    {
+        static const uint16_t len = sizeof(dataAnswer);
 
+        dataAnswer.header.crc32 = 0;
+        dataAnswer.header.crc32 = crc32(reinterpret_cast<unsigned char *>(&dataAnswer),len);
+    }
+
+    void Server::ModifyDataAnswerId(uint32_t const& id) 
+    {
+        dataAnswer.header.id = id;
+        CalcCrcDataAnswer();
+    }
+
+    bool Server::Client::operator==(sockaddr_in const& other)
+    {
+        return address.sin_addr.s_addr == other.sin_addr.s_addr
+        && address.sin_port == other.sin_port;
+    }
+
+    bool Server::Client::operator!=(sockaddr_in const& other)
+    {
+        return !(*this == other);
+    }
 }
