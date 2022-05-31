@@ -37,6 +37,9 @@ namespace kmicki::hiddev
         // Closes input file.
         ~HidDevReader();
 
+        // Set start marker in case hiddev file doesn't provide a way to find start of the frame.
+        void SetStartMarker(std::vector<char> const& marker);
+
         // Get current frame data.
         // Locks frame for reading.
         // If frame is locked for writing, it waits until writing is finished.
@@ -106,6 +109,8 @@ namespace kmicki::hiddev
         uint32_t lastInc;
         bool smallLossEncountered;
         std::chrono::microseconds bigLossDuration;
+
+        std::vector<char> startMarker;
     };
 
 }

@@ -27,7 +27,8 @@ namespace kmicki::hiddev
         scanPeriod(scanTime),
         inputStream(nullptr),
         frameMutex(),startStopMutex(),
-        v(),m()
+        v(),m(),
+        startMarker(0)
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -37,6 +38,11 @@ namespace kmicki::hiddev
         bigLossDuration = std::chrono::microseconds(4000);
 
         Log("HidDevReader: Initialized. Waiting for start of frame grab.");
+    }
+
+    void HidDevReader::SetStartMarker(std::vector<char> const& marker)
+    {
+        startMarker = marker;
     }
 
     void HidDevReader::Start()
@@ -270,9 +276,26 @@ namespace kmicki::hiddev
                 continue;
             }
             fail=0;
-            bool inputFail;
+            bool inputFail = input.fail();
+            bool startMarkerFail = false;
 
-            if((inputFail = input.fail()) || *(reinterpret_cast<unsigned int*>(buf->data())) != 0xFFFF0002)
+            if(!input.fail())
+            {
+                startMarkerFail = *(reinterpret_cast<unsigned int*>(buf->data())) != 0xFFFF0002;
+                if(startMarkerFail && startMarker.size() > 0 && *(reinterpret_cast<unsigned int*>(buf->data())) == 0xFFFF0001)
+                {
+                    startMarkerFail = false;
+                    // Check special start marker
+                    for(int i = BYTEPOS_INPUT, j=0;j<startMarker.size();++j,i+=INPUT_RECORD_LEN)
+                        if(startMarker[j] != (*buf)[i])
+                        {
+                            startMarkerFail = true;
+                            break;
+                        }
+                }
+            }
+
+            if(inputFail || startMarkerFail)
             {
                 if(inputFail)
                     Log("HidDevReader: Reading from hiddev file failed.");

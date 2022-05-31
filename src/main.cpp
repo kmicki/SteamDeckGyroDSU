@@ -53,6 +53,9 @@ int main()
     { LogF msg; msg << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
     
     HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_US);
+
+    reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 });
+
     CemuhookAdapter adapter(reader);
     Server server(adapter);
 
