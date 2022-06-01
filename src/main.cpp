@@ -18,7 +18,7 @@ bool showIncrement = false;
 #define FRAME_LEN 64
 #define SCAN_PERIOD_US 3850
 
-#define VERSION "1.10-next-DEV"
+#define VERSION "1.11-NEXT-DEV"
 
 #define VID 0x28de
 #define PID 0x1205
@@ -69,6 +69,9 @@ int main()
     { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
     
     HidDevReader reader(hidno,FRAME_LEN,SCAN_PERIOD_US);
+
+    reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 });
+
     CemuhookAdapter adapter(reader);
     Server server(adapter);
 

@@ -8,7 +8,9 @@ using namespace kmicki::log;
 namespace kmicki::hiddev
 {
     // Constants
-    const int HidDevReader::cInputRecordLen = 8;   // Number of bytes that are read from hiddev file per 1 byte of HID data.
+    const int HidDevReader::cInputRecordLen = 8;    // Number of bytes that are read from hiddev file per 1 byte of HID data.
+    const int HidDevReader::cByteposInput = 4;      // Position in the raw hiddev record (of INPUT_RECORD_LEN length) where 
+                                                    // HID data byte is.
 
     // Definition - HidDevReader
 
@@ -43,6 +45,7 @@ namespace kmicki::hiddev
         AddOperation(analyzer);
 
         serve = serveFrame;
+        read = readData;
 
         Log("HidDevReader: Pipeline initialized. Waiting for start...");
     }
@@ -60,6 +63,13 @@ namespace kmicki::hiddev
     void HidDevReader::StopServe(Serve<frame_t> & _serve)
     {
         serve->StopServe(_serve);
+    }
+
+    void HidDevReader::SetStartMarker(std::vector<char> const& marker)
+    {
+        if(read == nullptr)
+            return;
+        read->SetStartMarker(marker);
     }
 
     void HidDevReader::Start()

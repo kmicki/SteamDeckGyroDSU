@@ -22,10 +22,6 @@ namespace kmicki::hiddev
         int missedTicks = 0;
         int nonMissedTicks = 0;
 
-        // Constants
-        static const int cByteposInput = 4;     // Position in the raw hiddev record (of INPUT_RECORD_LEN length) where 
-                                                // HID data byte is.
-
         // ReadData sometimes hangs on reading from hiddev file forever. This has to be detected and thread needs to be reset forcefully.
         static const std::chrono::milliseconds readTaskTimeout(6);      // Timeout of ReadData - means that reading from hiddev file hangs
         

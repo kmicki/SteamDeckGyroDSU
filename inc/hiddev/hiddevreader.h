@@ -45,6 +45,9 @@ namespace kmicki::hiddev
         // Closes input file.
         ~HidDevReader();
 
+        // Set start marker in case hiddev file doesn't provide a way to find start of the frame.
+        void SetStartMarker(std::vector<char> const& marker);
+
         // Get frame serve
         Serve<frame_t> & GetServe();
 
@@ -112,6 +115,8 @@ namespace kmicki::hiddev
             void ReconnectInput();
             void DisconnectInput();
 
+            void SetStartMarker(std::vector<char> const& marker); 
+
             PipeOut<std::vector<char>> Data;
             SignalOut Unsynced;
 
@@ -125,6 +130,7 @@ namespace kmicki::hiddev
             std::ifstream inputStream;
             std::string inputFilePath;
             SignalOut & tick;
+            std::vector<char> startMarker;
         };
 
         class ProcessData : public Thread
@@ -196,6 +202,7 @@ namespace kmicki::hiddev
         };
 
         static const int cInputRecordLen;
+        static const int cByteposInput;
 
         int frameLen;
 
@@ -212,11 +219,14 @@ namespace kmicki::hiddev
 
         std::vector<std::unique_ptr<Thread>> pipeline;
         ServeFrame * serve;
+        ReadData* read;
 
         // Mutex
         std::mutex startStopMutex;
 
         void AddOperation(pipeline::Thread * operation);
+
+        
     };
 
 }

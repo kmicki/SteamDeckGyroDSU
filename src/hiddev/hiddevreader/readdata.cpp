@@ -7,7 +7,7 @@ namespace kmicki::hiddev
 {
     // Definition - ReadData
     HidDevReader::ReadData::ReadData(std::string const& _inputFilePath, int const& _frameLen, SignalOut & _tick)
-    : inputFilePath(_inputFilePath), tick(_tick), inputStream(),
+    : inputFilePath(_inputFilePath), tick(_tick), inputStream(), startMarker(0),
       Data(new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen),
            new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen), 
            new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen)),
@@ -81,9 +81,28 @@ namespace kmicki::hiddev
     bool HidDevReader::ReadData::CheckData(std::unique_ptr<std::vector<char>> const& data)
     {
         static const uint32_t cFirst4Bytes = 0xFFFF0002;
+        static const uint32_t cFirst4BytesAlternative = 0xFFFF0001;
 
-        bool inputFail;
-        if((inputFail = inputStream.fail()) || ExtractFirst4Bytes(*data) != cFirst4Bytes)
+        bool inputFail = inputStream.fail();
+        bool startMarkerFail = false;
+
+        if(!inputFail)
+        {
+            startMarkerFail = ExtractFirst4Bytes(*data) != cFirst4Bytes;
+            if(startMarkerFail && startMarker.size() > 0 && ExtractFirst4Bytes(*data) == cFirst4BytesAlternative)
+            {
+                startMarkerFail = false;
+                // Check special start marker
+                for(int i = cByteposInput, j=0;j<startMarker.size();++j,i+=cInputRecordLen)
+                    if(startMarker[j] != (*data)[i])
+                    {
+                        startMarkerFail = true;
+                        break;
+                    }
+            }
+        }
+
+        if(inputFail || startMarkerFail)
         {
             if(inputFail)
                 Log("HidDevReader::ReadData: Reading from hiddev file failed.");
@@ -96,5 +115,10 @@ namespace kmicki::hiddev
             return false;
         }
         return true;
+    }
+
+    void HidDevReader::ReadData::SetStartMarker(std::vector<char> const& marker)
+    {
+        startMarker = marker;
     }
 }
