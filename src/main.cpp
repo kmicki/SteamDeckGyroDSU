@@ -17,7 +17,7 @@ bool showIncrement = false;
 #define FRAME_LEN 64
 #define SCAN_PERIOD_US 3945
 
-#define VERSION "1.10"
+#define VERSION "1.11"
 
 #define VID 0x28de
 #define PID 0x1205
