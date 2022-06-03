@@ -70,46 +70,11 @@ namespace kmicki::hiddev
 
         // Pipeline threads
 
-        class Metronome : public Thread
-        {
-            public:
-            Metronome() = delete;
-
-            // Provide initial scan time
-            Metronome(std::chrono::microseconds _scanTime);
-            
-            ~Metronome();
-
-            // Pipeline
-            void SetScanTimeIn(PipeOut<std::chrono::microseconds> & _scanTimeIn);
-            void UnsetScanTimeIn();
-
-
-            SignalOut Tick;
-
-            std::chrono::microseconds GetInitialScanTime();
-            std::chrono::microseconds GetCurrentScanTime();
-
-            protected:
-
-            void Execute() override;
-            void FlushPipes() override;
-
-            private:
-            bool TryGetScanTime();
-            std::chrono::microseconds scanTime;
-            std::chrono::microseconds initialScanTime;
-            PipeOut<std::chrono::microseconds> * scanTimeIn;
-            std::unique_ptr<std::chrono::microseconds> const* scanTimeInPtr;
-            std::shared_mutex scanTimeMutex;
-
-        };
-
         class ReadData : public Thread
         {
             public:
             ReadData() = delete;
-            ReadData(std::string const& _inputFilePath, int const& _frameLen, SignalOut & _tick);
+            ReadData(std::string const& _inputFilePath, int const& _frameLen);//, SignalOut & _tick);
             ~ReadData();
 
             void ReconnectInput();
@@ -129,7 +94,6 @@ namespace kmicki::hiddev
             bool CheckData(std::unique_ptr<std::vector<char>> const& data);
             std::ifstream inputStream;
             std::string inputFilePath;
-            SignalOut & tick;
             std::vector<char> startMarker;
         };
 
@@ -142,7 +106,6 @@ namespace kmicki::hiddev
 
             PipeOut<frame_t> Frame;
             SignalOut ReadStuck;
-            PipeOut<int64_t> Diff;
 
             protected:
 
@@ -179,28 +142,6 @@ namespace kmicki::hiddev
             std::condition_variable_any framesCv;
         };
 
-        class AnalyzeMissedFrames : public Thread
-        {
-            public:
-            AnalyzeMissedFrames() = delete;
-            AnalyzeMissedFrames(PipeOut<int64_t> & _diff, Metronome & _metronome, SignalOut & _readStuck, SignalOut & _unsynced);
-
-            PipeOut<std::chrono::microseconds> ScanTime;
-
-            protected:
-
-            void Execute() override;
-            void FlushPipes() override;
-
-            private:
-            PipeOut<int64_t> & diff;
-            SignalOut & readStuck;
-            SignalOut & unsynced;
-
-            // Fields used by loss analysis
-            Metronome & metronome;
-        };
-
         static const int cInputRecordLen;
         static const int cByteposInput;
 
@@ -210,13 +151,6 @@ namespace kmicki::hiddev
 
         std::chrono::microseconds scanPeriod;   // set time span between read attempts
         
-        // Pipeline threads
-        // std::unique_ptr<Metronome> metronome;
-        // std::unique_ptr<ReadData> readData;
-        // std::unique_ptr<ProcessData> processData;
-        // std::unique_ptr<ServeFrame> serveFrame;
-        // std::unique_ptr<AnalyzeMissedFrames> analyzer;
-
         std::vector<std::unique_ptr<Thread>> pipeline;
         ServeFrame * serve;
         ReadData* read;

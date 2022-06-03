@@ -6,8 +6,8 @@ using namespace kmicki::log;
 namespace kmicki::hiddev
 {
     // Definition - ReadData
-    HidDevReader::ReadData::ReadData(std::string const& _inputFilePath, int const& _frameLen, SignalOut & _tick)
-    : inputFilePath(_inputFilePath), tick(_tick), inputStream(), startMarker(0),
+    HidDevReader::ReadData::ReadData(std::string const& _inputFilePath, int const& _frameLen)
+    : inputFilePath(_inputFilePath), inputStream(), startMarker(0),
       Data(new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen),
            new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen), 
            new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen)),
@@ -20,15 +20,15 @@ namespace kmicki::hiddev
     void HidDevReader::ReadData::ReconnectInput()
     {
         DisconnectInput();
-        Log("HidDevReader::ReadData: Opening hiddev file.");
-        inputStream.open(inputFilePath);
+        Log("HidDevReader::ReadData: Opening hiddev file.",LogLevelDebug);
+        inputStream.open(inputFilePath,std::ios_base::binary);
     }
 
     void HidDevReader::ReadData::DisconnectInput()
     {
         if(inputStream.is_open())
         {
-            Log("HidDevReader::ReadData: Closing hiddev file.");
+            Log("HidDevReader::ReadData: Closing hiddev file.",LogLevelDebug);
             inputStream.close();
             inputStream.clear();
         }
@@ -50,11 +50,11 @@ namespace kmicki::hiddev
             throw std::runtime_error("HidDevReader::ReadData: Problem opening hiddev file. Are priviliges granted?");
         auto const& data = Data.GetPointerToFill();
 
-        Log("HidDevReader::ReadData: Started.");
+        Log("HidDevReader::ReadData: Started.",LogLevelDebug);
         
         while(ShouldContinue())
         {
-            tick.WaitForSignal();
+            //tick.WaitForSignal();
 
             if(!ShouldContinue())
                 break;
@@ -70,12 +70,12 @@ namespace kmicki::hiddev
         }
 
         DisconnectInput();
-        Log("HidDevReader::ReadData: Stopped.");
+        Log("HidDevReader::ReadData: Stopped.",LogLevelDebug);
     }
 
     void HidDevReader::ReadData::FlushPipes()
     {
-        tick.SendSignal();
+        //tick.SendSignal();
     }
 
     bool HidDevReader::ReadData::CheckData(std::unique_ptr<std::vector<char>> const& data)
@@ -105,9 +105,9 @@ namespace kmicki::hiddev
         if(inputFail || startMarkerFail)
         {
             if(inputFail)
-                Log("HidDevReader::ReadData: Reading from hiddev file failed.");
+                Log("HidDevReader::ReadData: Reading from hiddev file failed.",LogLevelDebug);
             else
-                Log("HidDevReader::ReadData: Reading from hiddev file started in the middle of the HID frame.");
+                Log("HidDevReader::ReadData: Reading from hiddev file started in the middle of the HID frame.",LogLevelDebug);
             // Failed to read a frame
             // or start in the middle of the input frame
             ReconnectInput();

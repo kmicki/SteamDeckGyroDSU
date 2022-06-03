@@ -8,7 +8,7 @@ namespace kmicki::hiddev
     // Definition - ProcessData
 
     HidDevReader::ProcessData::ProcessData(int const& _frameLen, ReadData & _data)
-    : readData(_data), data(_data.Data), ReadStuck(), Diff(), 
+    : readData(_data), data(_data.Data), ReadStuck(),
       Frame(new frame_t(_frameLen),new frame_t(_frameLen),new frame_t(_frameLen))
     { }
 
@@ -27,21 +27,17 @@ namespace kmicki::hiddev
         
         auto const& frame = Frame.GetPointerToFill();
         auto const& hidData = data.GetPointer();
-        
-        uint32_t lastInc = 0;
-
-        auto const& diff = Diff.GetPointerToFill();
 
         int missedLossTicks = 0;
         int nonMissedLossTicks = 0;
 
-        Log("HidDevReader::ProcessData: Started.");
+        Log("HidDevReader::ProcessData: Started.",LogLevelDebug);
 
         while(ShouldContinue())
         {
             if(!data.WaitForData(readTaskTimeout))
             {
-                Log("HidDevReader::ProcessData: Reading from hiddev file stuck. Force-restarting reading task.");
+                Log("HidDevReader::ProcessData: Reading from hiddev file stuck. Force-restarting reading task.",LogLevelDebug);
                 ReadStuck.SendSignal();
                 readData.TryRestartThenForceRestart(cReadDataRestartTimeout);
                 continue;
@@ -50,27 +46,17 @@ namespace kmicki::hiddev
                 break;
 
             // Each byte is encapsulated in a record
-            for (int i = 0, j = cByteposInput; i < frame->size(); ++i,j+=cInputRecordLen) {
+            for (int i = 0, j = cByteposInput; i < frame->size(); ++i,j+=cInputRecordLen) 
+            {
                 (*frame)[i] = (*hidData)[j];
             }
-
-            uint32_t const& newInc = *reinterpret_cast<uint32_t const*>(frame->data()+4);
-            if(lastInc != 0)
-            {
-                *diff = (int64_t) newInc - (int64_t) lastInc;
-
-                HandleMissedTicks("HidDevReader::ProcessData","loss reports",Diff.WasReceived(),missedLossTicks,cReportMissedTicksPeriod,nonMissedTicks);
-                
-                Diff.SendData();
-            }
-            lastInc = newInc;
             
             HandleMissedTicks("HidDevReader::ProcessData","frames",Frame.WasReceived(),missedTicks,cReportMissedTicksPeriod,nonMissedLossTicks);
 
             Frame.SendData();
         }
         
-        Log("HidDevReader::ProcessData: Stopped.");
+        Log("HidDevReader::ProcessData: Stopped.",LogLevelDebug);
     }
 
     void HidDevReader::ProcessData::FlushPipes()

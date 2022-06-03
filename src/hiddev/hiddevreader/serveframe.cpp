@@ -19,7 +19,7 @@ namespace kmicki::hiddev
             ptr.reset(new Serve<frame_t>(frame.GetPointer()));
             lock.unlock();
             framesCv.notify_all();
-            Log("HidDevReader::ServeFrame: New consumer of frames");
+            Log("HidDevReader::ServeFrame: New consumer of frames",LogLevelDebug);
             return *ptr;
         }
     }
@@ -33,13 +33,15 @@ namespace kmicki::hiddev
                 shLock.unlock();
                 std::lock_guard lock(framesMutex);
                 frames.erase(x);
-                Log("HidDevReader::ServeFrame: Stop serving frames to consumer.");
+                Log("HidDevReader::ServeFrame: Stop serving frames to consumer.",LogLevelDebug);
                 return;
             }
     }
 
     void HidDevReader::ServeFrame::HandleMissedFrames(int &serveCnt, std::vector<int> &missedTicks, std::vector<int> &nonMissedTicks, std::vector<std::string> &serveNames)
     {
+        if(GetLogLevel() < LogLevelDebug)
+            return;
         static const int cReportMissedTicksPeriod = 250;
 
         int newSize;
@@ -67,7 +69,7 @@ namespace kmicki::hiddev
 
     void HidDevReader::ServeFrame::Execute()
     {
-        Log("HidDevReader::ServeFrame: Started.");
+        Log("HidDevReader::ServeFrame: Started.",LogLevelDebug);
 
         std::vector<int> missedTicks(0);
         std::vector<int> nonMissedTicks(0);
@@ -88,7 +90,7 @@ namespace kmicki::hiddev
             }
             std::this_thread::sleep_for(std::chrono::microseconds(500));
         }
-        Log("HidDevReader::ServeFrame: Stopped.");
+        Log("HidDevReader::ServeFrame: Stopped.",LogLevelDebug);
     }
 
     void HidDevReader::ServeFrame::FlushPipes()

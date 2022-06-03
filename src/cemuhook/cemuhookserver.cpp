@@ -103,12 +103,12 @@ namespace kmicki::cemuhook
 
         stop = false;
         serverThread.reset(new std::thread(&Server::serverTask,this));
-        Log("Server: Initialized.");
+        Log("Server: Initialized.",LogLevelDebug);
     }
 
     void Server::PrepareAnswerConstants()
     {
-        Log("Server: Pre-filling messages.");
+        Log("Server: Pre-filling messages.",LogLevelTrace);
         Header outHeader;
         outHeader.magic[0] = 'D';
         outHeader.magic[1] = 'S';
@@ -191,7 +191,7 @@ namespace kmicki::cemuhook
                         if((sockInClient.sin_addr.s_addr != lastVersionClient.sin_addr.s_addr
                                || sockInClient.sin_port != lastVersionClient.sin_port))
                         {
-                            { LogF() << "Server: New client asked for version. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                            { LogF(LogLevelDebug) << "Server: New client asked for version. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
                             lastVersionClient = sockInClient;
                         }
                         outBuf = PrepareVersionAnswer(header.id);
@@ -204,7 +204,7 @@ namespace kmicki::cemuhook
                         if((sockInClient.sin_addr.s_addr != lastInfoClient.sin_addr.s_addr
                                || sockInClient.sin_port != lastInfoClient.sin_port))
                         {
-                            { LogF() << "Server: New client asked for controller info. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
+                            { LogF(LogLevelDebug) << "Server: New client asked for controller info. IP: " << GetIP(sockInClient,ipStr) << " Port: " << ntohs(sockInClient.sin_port) << "."; }
                             lastInfoClient = sockInClient;
                         }
                         {
@@ -224,7 +224,7 @@ namespace kmicki::cemuhook
                            && (sockInClient.sin_addr.s_addr != sendSockInClient.sin_addr.s_addr
                                || sockInClient.sin_port != sendSockInClient.sin_port))
                         {
-                            Log("Server: Request to subscribe from new client. Dropping current client.");
+                            Log("Server: Request to subscribe from new client. Dropping current client.",LogLevelDebug);
                             {
                                 std::lock_guard lock(stopSendMutex);
                                 stopSending = true;
@@ -279,13 +279,13 @@ namespace kmicki::cemuhook
 
     void Server::sendTask(sockaddr_in sockInClient, uint32_t id)
     {
-        Log("Server: Initiating frame grab start.");
+        Log("Server: Initiating frame grab start.",LogLevelDebug);
         motionSource.StartFrameGrab();
 
         std::pair<uint16_t , void const*> outBuf;
         uint32_t packet = 0;
 
-        Log("Server: Start sending controller data.");
+        Log("Server: Start sending controller data.",LogLevelDebug);
 
         std::unique_lock mainLock(stopSendMutex);
 
@@ -301,10 +301,10 @@ namespace kmicki::cemuhook
             mainLock.lock();
         }
 
-        Log("Server: Initiating frame grab stop.");
+        Log("Server: Initiating frame grab stop.",LogLevelDebug);
 
         motionSource.StopFrameGrab();
-        Log("Server: Stop sending controller data.");
+        Log("Server: Stop sending controller data.",LogLevelDebug);
     }
 
 

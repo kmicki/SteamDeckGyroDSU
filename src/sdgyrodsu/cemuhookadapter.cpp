@@ -101,22 +101,29 @@ namespace kmicki::sdgyrodsu
       lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),
       isPersistent(persistent), toReplicate(0)
     {
-        Log("CemuhookAdapter: Initialized. Waiting for start of frame grab.");
+        Log("CemuhookAdapter: Initialized. Waiting for start of frame grab.",LogLevelDebug);
     }
 
     void CemuhookAdapter::StartFrameGrab()
     {
         lastInc = 0;
-        Log("CemuhookAdapter: Starting frame grab.");
+        ignoreFirst = true;
+        Log("CemuhookAdapter: Starting frame grab.",LogLevelDebug);
         reader.Start();
         frameServe = &reader.GetServe();
     }
 
     int const& CemuhookAdapter::SetMotionDataNewFrame(MotionData &motion)
     {
-        static const int64_t cMaxDiffReplicate = 1000;
+        static const int64_t cMaxDiffReplicate = 100;
 
         auto const& dataFrame = frameServe->GetPointer();
+
+        if(ignoreFirst)
+        {
+            auto lock = frameServe->GetConsumeLock();
+            ignoreFirst = false;
+        }
 
         while(true)
         {
@@ -130,19 +137,20 @@ namespace kmicki::sdgyrodsu
 
                 if(lastInc != 0 && diff < 1 && diff > -100)
                 {
-                    Log("CemuhookAdapter: Frame was repeated. Ignoring...");
+                    Log("CemuhookAdapter: Frame was repeated. Ignoring...",LogLevelDebug);
                 }
                 else
                 {
                     if(lastInc != 0 && diff > 1)
                     {
-                        { LogF() << "CemuhookAdapter: Missed " << (diff-1) << " frames."; }
+                        LogF logMsg((diff > 6)?LogLevelDefault:LogLevelDebug);
+                        logMsg << "CemuhookAdapter: Missed " << (diff-1) << " frames.";
                         if(diff > 1000)
-                            { LogF() << std::setw(8) << std::setfill('0') << std::setbase(16)
+                            { LogF(LogLevelTrace) << std::setw(8) << std::setfill('0') << std::setbase(16)
                                      << "Current increment: 0x" << frame.Increment << ". Last: 0x" << lastInc << "."; }
                         if(diff <= cMaxDiffReplicate)
                         {
-                            Log("CemuhookAdapter: Replicating frames...");
+                            logMsg << " Replicating...";
                             toReplicate = diff-1;
                         }
                     }
@@ -181,7 +189,7 @@ namespace kmicki::sdgyrodsu
 
     void CemuhookAdapter::StopFrameGrab()
     {
-        Log("CemuhookAdapter: Stopping frame grab.");
+        Log("CemuhookAdapter: Stopping frame grab.",LogLevelDebug);
         reader.StopServe(*frameServe);
         frameServe = nullptr;
         reader.Stop();

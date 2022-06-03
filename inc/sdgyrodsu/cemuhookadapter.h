@@ -29,6 +29,7 @@ namespace kmicki::sdgyrodsu
         static void SetMotionData(SdHidFrame const& frame, cemuhook::protocol::MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
 
         private:
+        bool ignoreFirst;
         bool isPersistent;
 
         cemuhook::protocol::MotionData data;
