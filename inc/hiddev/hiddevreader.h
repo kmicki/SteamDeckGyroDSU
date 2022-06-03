@@ -38,7 +38,7 @@ namespace kmicki::hiddev
         //           If it will be much higher then the generated frames will be out of sync
         //           (a block of consecutive frames and then skip)
         // maxScanTime: maximum scan time
-        HidDevReader(int hidNo, int _frameLen, int scanTime);
+        HidDevReader(int hidNo, int _frameLen);
 
         // Destructor. 
         // Stops pipeline.
@@ -148,8 +148,6 @@ namespace kmicki::hiddev
         int frameLen;
 
         std::string inputFilePath;
-
-        std::chrono::microseconds scanPeriod;   // set time span between read attempts
         
         std::vector<std::unique_ptr<Thread>> pipeline;
         ServeFrame * serve;

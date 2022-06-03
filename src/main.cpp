@@ -20,7 +20,6 @@ const LogLevel cLogLevel = LogLevelTrace; // change to Default when configuratio
 const bool cRunPresenter = false;
 
 const int cFrameLen = 64;
-const int cScanPeriodUs = 3850;
 const uint16_t cVID = 0x28de;
 const uint16_t cPID = 0x1205;
 const std::string cVersion = "1.13";
@@ -58,7 +57,7 @@ int main()
 
     { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
     
-    HidDevReader reader(hidno,cFrameLen,cScanPeriodUs);
+    HidDevReader reader(hidno,cFrameLen);
 
     reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 });
 
