@@ -1,5 +1,11 @@
 ./build.sh
 
+result=$?
+
+if [ "$result" -ne 0 ]; then
+    exit $result
+fi
+
 cp pkg/* bin/
 
 mkdir -p pkgbin/
