@@ -13,11 +13,19 @@ When deck user has a password set, execute command:
 
     bash <(curl -sL https://github.com/kmicki/SteamDeckGyroDSU/raw/master/pkg/update.sh)
     
-Above command will download the binary package and install it.
+Above command will download the binary package and install it. It can be also used to update to the newest version at any time.
+
+When **SteamDeckGyroDSU** is already installed, it can also be updated by running following command (since version 1.13):
+
+    $HOME/sdgyrodsu/update.sh
 
 In case of first-time install, system restart is required. The install script will inform about that.
 
 To uninstall:
+
+    $HOME/sdgyrodsu/uninstall.sh
+
+Uninstall command for version 1.12 or lower:
 
     bash <(curl -sL https://github.com/kmicki/SteamDeckGyroDSU/raw/master/pkg/uninstall.sh)
     
@@ -51,9 +59,11 @@ where **X.X.X.X** is Deck's IP.
 
 ## Reporting problems
 
+Before reporting problems make sure you are running the most recent version of **SteamDeckGyroDSU** (see *Install/Update* section above).
+
 When reporting a problem or an issue with the server, please generate a log file with following command:
 
-    journalctl --user -u sdgyrodsu > sdgyrodsu.log
+    $HOME/sdgyrodsu/logcurrentrun.sh > sdgyrodsu.log
     
 File `sdgyrodsu.log` will be generated in current directory. Attach it to the issue describing the problem.
 

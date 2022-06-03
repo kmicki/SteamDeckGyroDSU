@@ -53,8 +53,8 @@ namespace kmicki::hiddev
         pipeline.emplace_back(operation);
     }
 
-    HidDevReader::HidDevReader(int hidNo, int _frameLen, int scanTime) 
-    : frameLen(_frameLen), scanPeriod(scanTime), startStopMutex()
+    HidDevReader::HidDevReader(int hidNo, int _frameLen) 
+    : frameLen(_frameLen), startStopMutex()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 

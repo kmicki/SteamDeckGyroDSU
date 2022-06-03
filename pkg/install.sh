@@ -73,6 +73,24 @@ else
 	exit 26
 fi
 
+rm $HOME/sdgyrodsu/update.sh >/dev/null 2>&1
+cp update.sh $HOME/sdgyrodsu/ >/dev/null
+if chmod +x $HOME/sdgyrodsu/update.sh >/dev/null; then
+	echo "Update script copied."
+fi
+
+rm $HOME/sdgyrodsu/uninstall.sh >/dev/null 2>&1
+cp uninstall.sh $HOME/sdgyrodsu/ >/dev/null
+if chmod +x $HOME/sdgyrodsu/uninstall.sh >/dev/null; then
+	echo "Uninstall script copied."
+fi
+
+rm $HOME/sdgyrodsu/logcurrentrun.sh >/dev/null 2>&1
+cp logcurrentrun.sh $HOME/sdgyrodsu/ >/dev/null
+if chmod +x $HOME/sdgyrodsu/logcurrentrun.sh >/dev/null; then
+	echo "Log script copied."
+fi
+
 echo "Installing service..."
 rm $HOME/.config/systemd/user/sdgyrodsu.service >/dev/null 2>&1 
 if cp sdgyrodsu.service $HOME/.config/systemd/user/; then
