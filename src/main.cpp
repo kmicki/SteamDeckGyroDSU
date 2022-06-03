@@ -23,7 +23,7 @@ const int cFrameLen = 64;
 const int cScanPeriodUs = 3850;
 const uint16_t cVID = 0x28de;
 const uint16_t cPID = 0x1205;
-const std::string cVersion = "1.13";
+const std::string cVersion = "1.13-NEXT-DEV";
 
 void PresenterRun(HidDevReader * reader)
 {
