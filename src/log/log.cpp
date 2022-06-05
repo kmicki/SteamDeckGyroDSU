@@ -4,7 +4,7 @@
 
 namespace kmicki::log
 {
-    static LogLevel currentLogType = LogLevelDefault;
+    LogLevel currentLogType = LogLevelDefault;
 
     void SetLogLevel(LogLevel type)
     {
@@ -27,7 +27,7 @@ namespace kmicki::log
     }
 
     LogF::LogF(LogLevel type)
-    : std::stringstream(), logType(type)
+    : std::ostringstream(), logType(type)
     {};
 
     LogF::~LogF()
@@ -38,7 +38,7 @@ namespace kmicki::log
     void LogF::LogNow()
     {
         Log(str(),logType);
-        std::stringstream newStream;
+        std::ostringstream newStream;
         swap(newStream);
     }
 }

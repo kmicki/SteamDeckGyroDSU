@@ -14,6 +14,8 @@ namespace kmicki::log
         LogLevelTrace    =   3
     };
 
+    extern LogLevel currentLogType;
+
     void SetLogLevel(LogLevel type);
 
     LogLevel const& GetLogLevel();
@@ -24,12 +26,20 @@ namespace kmicki::log
     // class for logging formatted message
     // Behaves like output stream and message gets logged on destruction.
     // Usage: { LogF() << "This is an example message number " << nr << "!"; }
-    class LogF : public std::stringstream
+    class LogF : protected std::ostringstream
     {
         public:
 
         LogF(LogLevel type = LogLevelDefault);
         ~LogF();
+
+        template<class T>
+        LogF& operator<<(T const& val)
+        {
+            if(logType <= currentLogType)
+                *((std::ostringstream*)this) << val;            
+            return *this;
+        }
 
         // Log message without desctruction.
         void LogNow();
