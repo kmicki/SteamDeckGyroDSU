@@ -36,11 +36,6 @@ if [ "$common_reinstall" == true ]; then
     echo "Initializing package manager..."
     sudo pacman-key --init &>/dev/null
     sudo pacman-key --populate &>/dev/null
-    echo "Refreshing package manager databases"
-    sudo pacman -Sy --noconfirm >/dev/null
-    echo "Upgrading packages"
-    sudo pacman -Su --noconfirm >/dev/null
-    sudo pacman -Syu --noconfirm >/dev/null
     for i in ${!reinstall[@]}; do
         if [ "${reinstall[$i]}" == true ]; then
             echo -e "Reinstalling \e[1m${dependencies[$i]}\e[0m..."
