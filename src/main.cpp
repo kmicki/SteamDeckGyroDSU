@@ -9,6 +9,7 @@
 #include <iostream>
 #include <future>
 #include <thread>
+#include <csignal>
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
@@ -23,6 +24,44 @@ const int cFrameLen = 64;
 const uint16_t cVID = 0x28de;
 const uint16_t cPID = 0x1205;
 const std::string cVersion = "1.13-NEXT-DEV";
+
+bool stop = false;
+std::mutex stopMutex = std::mutex();
+std::condition_variable stopCV = std::condition_variable();
+
+void SignalHandler(int signal)
+{
+    {
+        LogF msg;
+        msg << "Incoming signal: ";
+        bool stopCmd = true;
+        switch(signal)
+        {
+            case SIGINT:
+                msg << "SIGINT";
+                break;
+            case SIGTERM:
+                msg << "SIGTERM";
+                break;
+            default:
+                msg << "Other";
+                stopCmd = false;
+                break;
+        }
+        if(!stopCmd)
+        {
+            msg << ". Unhandled, ignoring...";
+            return;
+        }
+        msg << ". Stopping...";
+    }
+
+    {
+        std::lock_guard lock(stopMutex);
+        stop = true;
+    }
+    stopCV.notify_all();
+}
 
 void PresenterRun(HidDevReader * reader)
 {
@@ -41,6 +80,11 @@ void PresenterRun(HidDevReader * reader)
 
 int main()
 {
+    signal(SIGINT,SignalHandler);
+    signal(SIGTERM,SignalHandler);
+
+    stop = false;
+
     if(cRunPresenter)
         SetLogLevel(LogLevelNone);
     else
@@ -71,8 +115,9 @@ int main()
     if(cRunPresenter)
         presenter.reset(new std::thread(PresenterRun,&reader));
 
-    while(true) {
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+    {
+        std::unique_lock lock(stopMutex);
+        stopCV.wait(lock,[]{ return stop; });
     }
 
     return 0;

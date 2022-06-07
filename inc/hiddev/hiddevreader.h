@@ -122,6 +122,7 @@ namespace kmicki::hiddev
             public:
             ServeFrame() = delete;
             ServeFrame(PipeOut<frame_t> & _frame);
+            ~ServeFrame();
 
             Serve<frame_t> & GetServe();
 

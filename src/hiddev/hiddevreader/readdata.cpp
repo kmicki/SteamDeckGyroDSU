@@ -15,7 +15,9 @@ namespace kmicki::hiddev
     { }
 
     HidDevReader::ReadData::~ReadData()
-    { }
+    {
+        TryStopThenKill();
+    }
 
     void HidDevReader::ReadData::ReconnectInput()
     {

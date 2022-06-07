@@ -24,6 +24,11 @@ namespace kmicki::hiddev
         }
     }
 
+    HidDevReader::ServeFrame::~ServeFrame()
+    {
+        TryStopThenKill();
+    }
+
     void HidDevReader::ServeFrame::StopServe(Serve<frame_t> & serve)
     {
         std::shared_lock shLock(framesMutex);

@@ -315,12 +315,14 @@ namespace kmicki::cemuhook
 
         if(sendThread.get() != nullptr)
         {
+            Log("Server: Stopping send thread...",LogLevelDebug);
             {
                 std::lock_guard lock(stopSendMutex);
                 stopSending = true;
             }
             sendThread.get()->join();
         }
+        Log("Server: Stopped.");
     }
 
     void Server::sendTask()

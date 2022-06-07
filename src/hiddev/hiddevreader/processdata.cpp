@@ -13,7 +13,9 @@ namespace kmicki::hiddev
     { }
 
     HidDevReader::ProcessData::~ProcessData()
-    { }
+    {
+        TryStopThenKill();
+    }
 
     void HidDevReader::ProcessData::Execute()
     {
