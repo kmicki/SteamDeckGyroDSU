@@ -2,15 +2,14 @@
 #define _KMICKI_HIDDEV_HIDDEVREADER_H_
 
 #include <vector>
-#include <fstream>
-#include <chrono>
-#include <mutex>
 #include <shared_mutex>
 
 #include "pipeline/thread.h"
 #include "pipeline/signalout.h"
 #include "pipeline/pipeout.h"
 #include "pipeline/serve.h"
+
+#include "hiddevfile.h"
 
 using namespace kmicki::pipeline;
 
@@ -38,7 +37,7 @@ namespace kmicki::hiddev
         //           If it will be much higher then the generated frames will be out of sync
         //           (a block of consecutive frames and then skip)
         // maxScanTime: maximum scan time
-        HidDevReader(int hidNo, int _frameLen);
+        HidDevReader(int const& hidNo, int const& _frameLen, int const& scanTimeUs);
 
         // Destructor. 
         // Stops pipeline.
@@ -74,7 +73,7 @@ namespace kmicki::hiddev
         {
             public:
             ReadData() = delete;
-            ReadData(std::string const& _inputFilePath, int const& _frameLen);//, SignalOut & _tick);
+            ReadData(std::string const& _inputFilePath, int const& _frameLen, int const& _scanTimeUs);
             ~ReadData();
 
             void ReconnectInput();
@@ -91,9 +90,8 @@ namespace kmicki::hiddev
             void FlushPipes() override;
 
             private:
-            bool CheckData(std::unique_ptr<std::vector<char>> const& data);
-            std::ifstream inputStream;
-            std::string inputFilePath;
+            bool CheckData(std::unique_ptr<std::vector<char>> const& data, ssize_t readCnt);
+            HidDevFile inputFile;
             std::vector<char> startMarker;
         };
 
@@ -101,7 +99,7 @@ namespace kmicki::hiddev
         {
             public:
             ProcessData() = delete;
-            ProcessData(int const& _frameLen, ReadData & _data);
+            ProcessData(int const& _frameLen, ReadData & _data, int const& scanTimeUs);
             ~ProcessData();
 
             PipeOut<frame_t> Frame;
@@ -115,6 +113,8 @@ namespace kmicki::hiddev
             private:
             ReadData & readData;
             PipeOut<std::vector<char>> & data;
+
+            std::chrono::microseconds timeout;
         };
 
         class ServeFrame : public Thread
@@ -152,7 +152,7 @@ namespace kmicki::hiddev
         
         std::vector<std::unique_ptr<Thread>> pipeline;
         ServeFrame * serve;
-        ReadData* read;
+        ReadData* readData;
 
         // Mutex
         std::mutex startStopMutex;

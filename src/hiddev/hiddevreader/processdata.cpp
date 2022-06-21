@@ -5,10 +5,10 @@ using namespace kmicki::log;
 
 namespace kmicki::hiddev
 {
-    // Definition - ProcessData
+    static const int cScanTimeToTimeout = 3;
 
-    HidDevReader::ProcessData::ProcessData(int const& _frameLen, ReadData & _data)
-    : readData(_data), data(_data.Data), ReadStuck(),
+    HidDevReader::ProcessData::ProcessData(int const& _frameLen, ReadData & _data, int const& scanTimeUs)
+    : readData(_data), data(_data.Data), ReadStuck(), timeout(cScanTimeToTimeout*scanTimeUs),
       Frame(new frame_t(_frameLen),new frame_t(_frameLen),new frame_t(_frameLen))
     { }
 
@@ -23,9 +23,6 @@ namespace kmicki::hiddev
         static const int cReportMissedTicksPeriod = 250;
         int missedTicks = 0;
         int nonMissedTicks = 0;
-
-        // ReadData sometimes hangs on reading from hiddev file forever. This has to be detected and thread needs to be reset forcefully.
-        static const std::chrono::milliseconds readTaskTimeout(6);      // Timeout of ReadData - means that reading from hiddev file hangs
         
         auto const& frame = Frame.GetPointerToFill();
         auto const& hidData = data.GetPointer();
@@ -37,7 +34,7 @@ namespace kmicki::hiddev
 
         while(ShouldContinue())
         {
-            if(!data.WaitForData(readTaskTimeout))
+            if(!data.WaitForData(timeout))
             {
                 Log("HidDevReader::ProcessData: Reading from hiddev file stuck. Force-restarting reading task.",LogLevelDebug);
                 ReadStuck.SendSignal();

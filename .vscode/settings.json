@@ -66,6 +66,9 @@
         "ios": "cpp",
         "locale": "cpp",
         "queue": "cpp",
-        "cstdbool": "cpp"
+        "cstdbool": "cpp",
+        "hash_map": "cpp",
+        "csignal": "cpp",
+        "list": "cpp"
     }
 }

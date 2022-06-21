@@ -53,7 +53,7 @@ namespace kmicki::hiddev
         pipeline.emplace_back(operation);
     }
 
-    HidDevReader::HidDevReader(int hidNo, int _frameLen) 
+    HidDevReader::HidDevReader(int const& hidNo, int const& _frameLen, int const& scanTimeUs) 
     : frameLen(_frameLen), startStopMutex()
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
@@ -62,16 +62,16 @@ namespace kmicki::hiddev
         inputFilePathFormatter << "/dev/usb/hiddev" << hidNo;
         inputFilePath = inputFilePathFormatter.str();
 
-        auto* readData = new ReadData(inputFilePath, _frameLen);
-        auto* processData = new ProcessData(_frameLen, *readData);
+        auto* readDataOp = new ReadData(inputFilePath, _frameLen, scanTimeUs);
+        auto* processData = new ProcessData(_frameLen, *readDataOp, scanTimeUs);
         auto* serveFrame = new ServeFrame(processData->Frame);
 
-        AddOperation(readData);
+        AddOperation(readDataOp);
         AddOperation(processData);
         AddOperation(serveFrame);
 
         serve = serveFrame;
-        read = readData;
+        readData = readDataOp;
 
         Log("HidDevReader: Pipeline initialized. Waiting for start...",LogLevelDebug);
     }
@@ -93,9 +93,9 @@ namespace kmicki::hiddev
 
     void HidDevReader::SetStartMarker(std::vector<char> const& marker)
     {
-        if(read == nullptr)
+        if(readData == nullptr)
             return;
-        read->SetStartMarker(marker);
+        readData->SetStartMarker(marker);
     }
 
     void HidDevReader::Start()

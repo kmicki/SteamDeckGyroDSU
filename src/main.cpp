@@ -20,10 +20,12 @@ using namespace kmicki::cemuhook;
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 const bool cRunPresenter = false;
 
-const int cFrameLen = 64;
-const uint16_t cVID = 0x28de;
-const uint16_t cPID = 0x1205;
-const std::string cVersion = "1.13-NEXT-DEV";
+const int cFrameLen = 64;       // Steam Deck Controls' custom HID report length in bytes
+const int cScanTimeUs = 4000;   // Steam Deck Controls' period between received report data in microseconds
+const uint16_t cVID = 0x28de;   // Steam Deck Controls' USB Vendor-ID
+const uint16_t cPID = 0x1205;   // Steam Deck Controls' USB Product-ID
+
+const std::string cVersion = "1.13-dev";   // Release version
 
 bool stop = false;
 std::mutex stopMutex = std::mutex();
@@ -91,7 +93,7 @@ int main()
         SetLogLevel(cLogLevel);
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
-    // Steam Deck controls: usb device VID: 28de, PID: 1205
+
     int hidno = FindHidDevNo(cVID,cPID);
     if(hidno < 0) 
     {
@@ -101,9 +103,9 @@ int main()
 
     { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
     
-    HidDevReader reader(hidno,cFrameLen);
+    HidDevReader reader(hidno,cFrameLen,cScanTimeUs);
 
-    reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 });
+    reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
 
     CemuhookAdapter adapter(reader);
     Server server(adapter);

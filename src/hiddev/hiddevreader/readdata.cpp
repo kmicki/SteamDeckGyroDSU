@@ -1,13 +1,17 @@
 #include "hiddev/hiddevreader.h"
 #include "log/log.h"
+#include <fcntl.h>
+#include <sys/select.h>
 
 using namespace kmicki::log;
 
 namespace kmicki::hiddev
 {
+    static const int cScanTimeToTimeout = 2;
+
     // Definition - ReadData
-    HidDevReader::ReadData::ReadData(std::string const& _inputFilePath, int const& _frameLen)
-    : inputFilePath(_inputFilePath), inputStream(), startMarker(0),
+    HidDevReader::ReadData::ReadData(std::string const& _inputFilePath, int const& _frameLen, int const& _scanTimeUs)
+    : inputFile(_inputFilePath,cScanTimeToTimeout*_scanTimeUs,false), startMarker(0),
       Data(new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen),
            new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen), 
            new std::vector<char>(HidDevReader::cInputRecordLen*_frameLen)),
@@ -23,16 +27,15 @@ namespace kmicki::hiddev
     {
         DisconnectInput();
         Log("HidDevReader::ReadData: Opening hiddev file.",LogLevelDebug);
-        inputStream.open(inputFilePath,std::ios_base::binary);
+        inputFile.Open();
     }
 
     void HidDevReader::ReadData::DisconnectInput()
     {
-        if(inputStream.is_open())
+        if(inputFile.IsOpen())
         {
             Log("HidDevReader::ReadData: Closing hiddev file.",LogLevelDebug);
-            inputStream.close();
-            inputStream.clear();
+            inputFile.Close();
         }
     }
 
@@ -48,8 +51,11 @@ namespace kmicki::hiddev
         int nonMissedTicks = 0;
 
         ReconnectInput();
-        if(inputStream.fail())
+        if(!inputFile.IsOpen())
+        {
+            { LogF() << "Error: " << errno; }
             throw std::runtime_error("HidDevReader::ReadData: Problem opening hiddev file. Are priviliges granted?");
+        }
         auto const& data = Data.GetPointerToFill();
 
         Log("HidDevReader::ReadData: Started.",LogLevelDebug);
@@ -61,9 +67,15 @@ namespace kmicki::hiddev
             if(!ShouldContinue())
                 break;
 
-            inputStream.read(data->data(),data->size());
+            auto readCnt = inputFile.Read(*data);
 
-            if(!CheckData(data))
+            if(readCnt == 0)
+            {
+                Log("HidDevReader::ReadData: Waiting for data timed out.",LogLevelTrace);
+                continue;
+            }
+
+            if(!CheckData(data,readCnt))
                 continue;
 
             HandleMissedTicks("HidDevReader::ReadData","HID frames",Data.WasReceived(),missedTicks,cReportMissedTicksPeriod,nonMissedTicks);
@@ -76,16 +88,14 @@ namespace kmicki::hiddev
     }
 
     void HidDevReader::ReadData::FlushPipes()
-    {
-        //tick.SendSignal();
-    }
+    { }
 
-    bool HidDevReader::ReadData::CheckData(std::unique_ptr<std::vector<char>> const& data)
+    bool HidDevReader::ReadData::CheckData(std::unique_ptr<std::vector<char>> const& data, ssize_t readCnt)
     {
         static const uint32_t cFirst4Bytes = 0xFFFF0002;
         static const uint32_t cFirst4BytesAlternative = 0xFFFF0001;
 
-        bool inputFail = inputStream.fail();
+        bool inputFail = readCnt < data->size();
         bool startMarkerFail = false;
 
         if(!inputFail)
