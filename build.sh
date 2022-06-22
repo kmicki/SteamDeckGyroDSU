@@ -1,7 +1,7 @@
 ./prepare.sh
 
 echo "Building source..."
-g++ -std=c++2a -O3 $(find inc -type d -printf '-I %p\n') -g $(find src -type f -iregex '.*\.cpp' -printf '%p\n') -pthread -lncurses -o bin/sdgyrodsu
+g++ -std=c++2a -O3 $(find inc -type d -printf '-I %p\n') $(find src -type f -iregex '.*\.cpp' -printf '%p\n') -pthread -lncurses -o bin/sdgyrodsu
 
 result=$?
 
