@@ -17,7 +17,6 @@
 				"-fdiagnostics-color=always",
 				"-I",
 				"${workspaceFolder}/inc",
-				"-g",
 				"$(find",
 				"${workspaceFolder}/src",
 				"-type",
