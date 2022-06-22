@@ -9,10 +9,10 @@ fi
 cp pkg/* bin/
 
 mkdir -p pkgbin/
-rm pkgbin/*
+rm -rf pkgbin/*
 mkdir -p pkgbin/SteamDeckGyroDSUSetup
 cp bin/* pkgbin/SteamDeckGyroDSUSetup/
 
 cd pkgbin
 zip -r SteamDeckGyroDSUSetup.zip SteamDeckGyroDSUSetup
-rm -r SteamDeckGyroDSUSetup
+rm -rf SteamDeckGyroDSUSetup
