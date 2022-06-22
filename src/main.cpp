@@ -122,5 +122,7 @@ int main()
         stopCV.wait(lock,[]{ return stop; });
     }
 
+    Log("SteamDeckGyroDSU exiting.");
+
     return 0;
 }
