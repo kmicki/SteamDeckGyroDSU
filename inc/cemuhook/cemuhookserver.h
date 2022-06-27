@@ -3,6 +3,7 @@
 
 #include "sdgyrodsu/cemuhookadapter.h"
 #include "cemuhookprotocol.h"
+#include "config.h"
 #include <thread>
 #include <netinet/in.h>
 #include <mutex>
@@ -16,7 +17,7 @@ namespace kmicki::cemuhook
         public:
         Server() = delete;
 
-        Server(sdgyrodsu::CemuhookAdapter & _motionSource);
+        Server(sdgyrodsu::CemuhookAdapter & _motionSource, Config & _config);
 
         ~Server();
 
@@ -68,6 +69,8 @@ namespace kmicki::cemuhook
         std::vector<Client> clients;
 
         void CheckClientTimeout(std::unique_ptr<std::thread> & sendThread, bool increment);
+
+        Config & config;
     };
 }
 

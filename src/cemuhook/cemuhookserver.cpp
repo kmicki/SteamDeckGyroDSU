@@ -12,7 +12,7 @@
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::log;
 
-#define PORT 26760
+// #define PORT 26760
 #define BUFLEN 100
 #define SCANTIME 0
 #define DECKSLOT 0
@@ -42,16 +42,19 @@ namespace kmicki::cemuhook
         return ~crc;
     }
 
-    Server::Server(CemuhookAdapter & _motionSource)
+    Server::Server(CemuhookAdapter & _motionSource, Config & _config)
         : motionSource(_motionSource), stop(false), serverThread(), stopSending(false),
-          mainMutex(), stopSendMutex(), socketSendMutex(), checkTimeout(false)
+          mainMutex(), stopSendMutex(), socketSendMutex(), checkTimeout(false),
+          config(_config)
     {
+        config.SubscribeToChange([&] { Start(); },this);
         PrepareAnswerConstants();
         Start();
     }
     
     Server::~Server()
     {
+        config.Unsubscribe(this);
         if(serverThread.get() != nullptr)
         {
             {
@@ -92,14 +95,25 @@ namespace kmicki::cemuhook
         sockInServer = sockaddr_in();
 
         sockInServer.sin_family = AF_INET;
-        sockInServer.sin_port = htons(PORT);
-        sockInServer.sin_addr.s_addr = INADDR_ANY;
+        sockInServer.sin_port = htons(config.Port());
+        switch(config.Interface())
+        {
+            case CfgIfLocal:
+                sockInServer.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+                break;
+            default:
+                sockInServer.sin_addr.s_addr = htonl(INADDR_ANY);
+                break;
+        }
+
+        char ipStr[INET6_ADDRSTRLEN];
+        ipStr[0] = 0;
+
+        { LogF(LogLevelTrace) << "Server: Creating socket at IP: " << GetIP(sockInServer,ipStr) << " Port: " << ntohs(sockInServer.sin_port) << "."; }
 
         if(bind(socketFd, (sockaddr*)&sockInServer, sizeof(sockInServer)) < 0)
             throw std::runtime_error("Server: Bind failed.");
 
-        char ipStr[INET6_ADDRSTRLEN];
-        ipStr[0] = 0;
         { LogF() << "Server: Socket created at IP: " << GetIP(sockInServer,ipStr) << " Port: " << ntohs(sockInServer.sin_port) << "."; }
 
         stop = false;
