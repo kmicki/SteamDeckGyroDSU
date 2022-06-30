@@ -10,12 +10,22 @@
 #include <future>
 #include <thread>
 #include <csignal>
+#include <libgen.h>
+#include <unistd.h>
+#include <linux/limits.h>
+#include <stdexcept>
+
+// Configuration
+#include "config/configcollection.h"
+#include "cemuhook/config.h"
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
 using namespace kmicki::log;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
+using namespace kmicki::config;
+using namespace kmicki;
 
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 const bool cRunPresenter = false;
@@ -31,6 +41,15 @@ const std::string cVersion = "1.14-DEV";   // Release version
 bool stop = false;
 std::mutex stopMutex = std::mutex();
 std::condition_variable stopCV = std::condition_variable();
+
+std::string GetExeDir()
+{
+    char result[PATH_MAX];
+    if(readlink("/proc/self/exe", result, PATH_MAX) == -1)
+        throw std::runtime_error("Can't read executable's path.");
+    
+    return std::string(dirname(result));
+}
 
 void SignalHandler(int signal)
 {
@@ -81,6 +100,15 @@ void PresenterRun(HidDevReader * reader)
     Presenter::Finish();
 }
 
+bool InitializeConfig(  std::string const& configPath,
+                        std::unique_ptr<ConfigCollection> & configuration, 
+                        kmicki::cemuhook::Config *& serverConfig)
+{
+    configuration.reset(new ConfigCollection(configPath));
+    serverConfig = &(configuration->AddConfig<cemuhook::Config>([](auto& data) { return new cemuhook::Config(data); }));
+    return configuration->Initialize();
+}
+
 int main()
 {
     signal(SIGINT,SignalHandler);
@@ -92,6 +120,28 @@ int main()
         SetLogLevel(LogLevelNone);
     else
         SetLogLevel(cLogLevel);
+        
+    static const char cPathSeparator = '/';
+    static const std::string cConfigFileName = "config.cfg";
+
+    auto path = GetExeDir();
+    std::ostringstream str;
+    str << path;
+    if(path.length() == 0 || *(path.rbegin()) != cPathSeparator)
+        str << cPathSeparator;
+    str << cConfigFileName;
+
+    auto configPath = str.str();
+
+    std::unique_ptr<ConfigCollection> configuration;
+    cemuhook::Config* serverConfig;
+    if(!InitializeConfig(configPath,configuration,serverConfig) && GetLogLevel() != LogLevelTrace)
+    {
+        auto lastLevel = GetLogLevel();
+        SetLogLevel(LogLevelTrace);
+        InitializeConfig(configPath,configuration,serverConfig);
+        SetLogLevel(lastLevel);
+    }
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
 
@@ -111,7 +161,7 @@ int main()
     if(cRunServer)
     {
         CemuhookAdapter adapter(reader);
-        Server server(adapter);
+        Server server(adapter,*serverConfig);
     }
 
     uint32_t lastInc = 0;
