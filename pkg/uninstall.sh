@@ -22,3 +22,4 @@ echo "Removing 'usbaccess' group"
 sudo groupdel usbaccess >/dev/null 2>&1
 
 echo "Uninstalling complete."
+

@@ -16,3 +16,4 @@ cp bin/* pkgbin/SteamDeckGyroDSUSetup/
 cd pkgbin
 zip -r SteamDeckGyroDSUSetup.zip SteamDeckGyroDSUSetup
 rm -rf SteamDeckGyroDSUSetup
+

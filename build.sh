@@ -11,3 +11,4 @@ if [ "$result" -ne 0 ]; then
 else
     echo -e "\e[1mBuilding complete.\e[0m"
 fi
+

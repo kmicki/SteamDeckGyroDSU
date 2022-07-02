@@ -25,3 +25,4 @@ cd
 rm -rf $HOME/SteamDeckGyroDSUSetup
 
 exit $code
+

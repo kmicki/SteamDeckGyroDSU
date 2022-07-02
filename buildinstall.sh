@@ -8,3 +8,4 @@ mkdir -p $HOME/sdgyrodsu
 cp bin/sdgyrodsu $HOME/sdgyrodsu/
 cp pkg/sdgyrodsu.service $HOME/.config/systemd/user/
 systemctl --user enable --now sdgyrodsu.service
+
