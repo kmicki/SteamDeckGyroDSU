@@ -21,6 +21,7 @@ namespace kmicki::config
     bool ConfigFile::LoadConfig(std::vector<std::unique_ptr<ConfigItemBase>> & configuration) const
     {
         static const int cBufLen = 500;
+        static const char cCommentPrefix = '#';
 
         { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Loading configuration from file: " << filePath; }
         std::ifstream file(filePath);
@@ -34,23 +35,53 @@ namespace kmicki::config
 
         int line = 0;
 
+        std::string precedingComment = "";
+
         while(!file.eof())
         {
             ++line;
             file.getline(buf,cBufLen);
             std::string str(buf);
 
-            // remove white space
+            // detect preceding comment
+            if(*(str.begin()) == cCommentPrefix)
+            {
+                str.erase(str.begin());
+
+                auto c = str.begin();
+                while(std::isspace(*c))
+                    c = str.erase(c);
+
+                precedingComment.append(str);
+                precedingComment.push_back('\n');
+
+                { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Line " << line << " - comment: " << str; }
+                continue;
+            }
+
+            std::string precedingCommentAll = "";
+            precedingCommentAll.swap(precedingComment);
+            std::string inlineComment = "";
+
+            // remove white space and comment
             auto c = str.begin();
             while(c != str.end())
                 if(std::isspace(*c))
                     c = str.erase(c);
+                else if(*c == cCommentPrefix)
+                {
+                    auto ch = c+1;
+                    while(std::isspace(*ch))
+                        ++ch;
+                    inlineComment = std::string(ch,str.end());
+                    c = str.erase(c,str.end());
+                }
                 else
                     ++c;
 
             if(str.empty())
             {
-                { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Line " << line << " - empty"; }
+                { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Line " << line << " - empty or comment"; }
                 continue;
             }
 
