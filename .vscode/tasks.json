@@ -28,7 +28,7 @@
 				"-pthread",
 				"-lncurses",
 				"-o",
-				"${workspaceFolder}/bin/sdgyrodsu"
+				"${workspaceFolder}/bin/release/sdgyrodsu"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
@@ -64,7 +64,7 @@
 				"-pthread",
 				"-lncurses",
 				"-o",
-				"${workspaceFolder}/bin/sdgyrodsu_dbg"
+				"${workspaceFolder}/bin/debug/sdgyrodsu"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"

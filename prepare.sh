@@ -53,6 +53,8 @@ fi
 
 echo -e "Create \e[1mbin\e[0m directory..."
 mkdir -p bin >/dev/null
+mkdir -p bin/release >/dev/null
+mkdir -p bin/debug >/dev/null
 
 exit 0
 
