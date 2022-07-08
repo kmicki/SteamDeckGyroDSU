@@ -2,16 +2,10 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "shell",
-			"label": "Prepare build",
-			"command": "${workspaceFolder}/prepare.sh"
-		},
-		{
 			"type": "cppbuild",
 			"label": "Build",
-			"dependsOn": "Prepare build",
 			"command": "/usr/sbin/make",
-			"args": [],
+			"args": [ "release" ],
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},
@@ -27,7 +21,6 @@
 		{
 			"type": "cppbuild",
 			"label": "Build Debug",
-			"dependsOn": "Prepare build",
 			"command": "/usr/sbin/make",
 			"args": [ "debug" ],
 			"options": {

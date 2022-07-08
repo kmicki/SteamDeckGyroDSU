@@ -1,16 +1,11 @@
 # Required packages
-declare -a dependencies=("gcc" "glibc" "linux-api-headers" "ncurses" "usbutils")
+dependencies=( "${@:2:$1}" ); shift "$(( $1 + 1 ))"
 
 # Some header file for each package.
 # SteamOS has all required packages installed by default but for some reason header files are missing.
 # This will be checked before building.
-declare -a checks=(
-    "/usr/include/c++/*/vector"
-    "/usr/include/errno.h"
-    "/usr/include/linux/can/error.h"
-    "/usr/include/ncurses.h"
-    "/usr/bin/lsusb"
-)
+checks=( "${@:2:$1}" ); shift "$(( $1 + 1 ))"
+
 declare -a reinstall
 common_reinstall=false
 
@@ -48,13 +43,8 @@ if [ "$common_reinstall" == true ]; then
     fi
     echo "Required dependencies reinstalled."
 else
-    echo "All dependencies' header files installed."
+    echo "All dependencies' header files already installed."
 fi
-
-echo -e "Create \e[1mbin\e[0m directory..."
-mkdir -p bin >/dev/null
-mkdir -p bin/release >/dev/null
-mkdir -p bin/debug >/dev/null
 
 exit 0
 

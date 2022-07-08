@@ -1,3 +1,5 @@
+cd "$(dirname "$(readlink -f "$0")")"
+
 echo "Checking 'usbaccess' user group..."
 if cat /etc/group | grep -q 'usbaccess'; then
 	echo "'usbaccess' group exits."
