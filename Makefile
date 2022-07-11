@@ -7,7 +7,9 @@
 # Parallel by default
 
 CPUS ?= $(shell nproc || echo 1)
-MAKEFLAGS += --jobs=$(CPUS)
+JMUL := 4
+JOBS := $(shell echo $$(($(CPUS) * $(JMUL))))
+MAKEFLAGS += --jobs=$(JOBS)
 
 # Configuration
 
@@ -36,6 +38,10 @@ DEBUG = debug
 EXENAME = sdgyrodsu
 # 		main name for the binary package
 PKGNAME = SteamDeckGyroDSUSetup
+#		name of symbolic link to release binary
+SYMRELEASE = launch
+#		name of symbolic link to debug binary
+SYMDEBUG = launchdebug
 
 #	Extensions
 # 		extension of source files
@@ -139,7 +145,21 @@ PACKAGEFILES := $(wildcard $(PKGDIR)/*)
 #	Binary package files in a destination directory
 PKGBINFILES := $(PKGPREPDIR)/$(EXENAME) $(subst $(PKGDIR)/,$(PKGPREPDIR)/,$(PACKAGEFILES))
 
-.SILENT:
+
+SILENTFLAG := $(if $(findstring s,$(word 1, $(MAKEFLAGS))),$(if $(findstring -,$(word 1, $(MAKEFLAGS))),,true))
+INSILENT := $(if $(SILENTFLAG),&>/dev/null)
+DUMMYSHELLSILENT := $(if $(SILENTFLAG),&>/dev/null,1>&2)
+SHELLSILENT := $(if $(SILENTFLAG),2>/dev/null,)
+
+$(shell echo "Makefile flags: $(MAKEFLAGS)" $(DUMMYSHELLSILENT))
+
+$(shell echo "Makefile targets: $(MAKECMDGOALS)" $(DUMMYSHELLSILENT))
+
+# .SILENT:
+# Silent inside recipes loops,ifs etc:
+# INSILENT := &>/dev/null
+# DUMMYSHELLSILENT := &>/dev/null
+# SHELLSILENT := 2>/dev/null
 
 # Phony Targets
 .PHONY: release			# Release build - generate executable $BINDIR/$RELEASE/$EXENAME
@@ -155,32 +175,35 @@ PKGBINFILES := $(PKGPREPDIR)/$(EXENAME) $(subst $(PKGDIR)/,$(PKGPREPDIR)/,$(PACK
 .PHONY: pkgprepclean	# Clean files prepared for binary package
 .PHONY: cleanall		# Clean all artifacts (deletes $BINDIR, $OBJDIR, $PKGBINDIR)
 .PHONY: install			# Run install script in prepared binary package files
-.PHONY: afterany		# Target that runs after some targets
 .PHONY: uninstall		# Uninstall package
 
 .DEFAULT_GOAL := release
 
-# Clean temporary files after some targets
-afterany:
-	rm -f $(FINISHDEPS)
-	rm -f $(RUNDEPS)
-	rm -f $(MEMORYDEPS)
-	rm -f $(CHECKDEPS)
-	@echo "Cleaned temporary files"
-
 # Prepare
 
-#	Temporary file for running double-colon rules only when target doesn't exist
+
+TEMPFILESNEC := $(or $(if $(MAKECMDGOALS),,x),$(findstring release,$(MAKECMDGOALS)),$(findstring debug,$(MAKECMDGOALS))\
+,$(findstring install,$(MAKECMDGOALS)),$(findstring createpkg,$(MAKECMDGOALS)),$(findstring preparepkg,$(MAKECMDGOALS))\
+,$(findstring prepare,$(MAKECMDGOALS)))
+
 RUNDEPS := mk_deps_run.tmp
+FINISHDEPS := mk_deps.tmp
+CHECKDEPS := mk_chdeps.tmp
+
+ifneq ($(TEMPFILESNEC),)
+$(shell echo "Creating temporary files." 1>&2)
+#	Temporary file for running double-colon rules only when target doesn't exist
 $(shell touch -d "1990-01-01" $(RUNDEPS) &>/dev/null)
+$(shell echo "touch -d "1990-01-01" $(RUNDEPS) &>/dev/null" $(DUMMYSHELLSILENT))
 
 #	Temporary file for running finishing commands if dependencies are reinstalled
-FINISHDEPS := mk_deps.tmp
 $(shell touch $(FINISHDEPS) &>/dev/null)
+$(shell echo "touch $(FINISHDEPS) &>/dev/null" $(DUMMYSHELLSILENT))
 
 #	Final file
-CHECKDEPS := mk_chdeps.tmp
 $(shell touch -d "1990-01-01"  $(CHECKDEPS) &>/dev/null)
+$(shell echo "touch -d "1990-01-01"  $(CHECKDEPS) &>/dev/null" $(DUMMYSHELLSILENT))
+endif
 
 #	Temporary file for storing information between preparation and finish script
 MEMORYDEPS := mk_deps_mem.tmp
@@ -189,11 +212,23 @@ prepare: 		$(CHECKDEPS)
 
 # Clean temporary files after dependencies are checked
 $(CHECKDEPS): $(FINISHDEPS)
+	@echo "Cleaning temporary files"
 	rm -f $(FINISHDEPS)
 	rm -f $(RUNDEPS)
-	rm -f $(MEMORYDEPS)
 	rm -f $(CHECKDEPS)
-	@echo "Cleaned temporary files"
+ifneq ($(MAKECMDGOALS),prepare)
+	@if [[ -f $(MEMORYDEPS) && $(MEMORYDEPS) -nt Makefile ]]; then\
+		echo "rm -f $(MEMORYDEPS)" $(INSILENT);\
+		rm -f $(MEMORYDEPS);\
+		echo "Dependencies were reinstalled. Restarting make.";\
+		echo "$(MAKE) $(MAKECMDGOALS)" $(INSILENT);\
+		$(MAKE) $(MAKECMDGOALS);\
+		echo "Ignore error below. Make has finished.";\
+		echo "false" $(INSILENT);\
+		false;\
+	fi
+endif
+	rm -f $(MEMORYDEPS)
 
 #	Initially memory file does not exist - require it.
 #	Creating it will trigger updates of dependencies (see below)
@@ -201,6 +236,7 @@ $(CHECKDEPS): $(FINISHDEPS)
 $(FINISHDEPS): $(MEMORYDEPS)
 	@if grep -q true $(MEMORYDEPS); then \
 		echo "Reenabling read-only filesystem";\
+		echo "steamos-readonly enable &>/dev/null" $(INSILENT);\
 		sudo steamos-readonly enable &>/dev/null;\
 	fi
 	@echo "Required dependencies reinstalled."
@@ -209,7 +245,10 @@ $(FINISHDEPS): $(MEMORYDEPS)
 #	If no dependency needs a reinstall, file is created with old date
 #	(to prevent finishing script from running)
 $(MEMORYDEPS): $(DEPENDCHECKFILES)
-	@if [ ! -f $(MEMORYDEPS) ]; then touch -d "1990-01-01" $(MEMORYDEPS); fi
+	@if [ ! -f $(MEMORYDEPS) ]; then \
+		touch -d "1990-01-01" $(MEMORYDEPS); \
+		echo "touch -d "1990-01-01" $(MEMORYDEPS)" $(INSILENT);\
+	fi
 
 #	Preparation. Fake dependency with old date is added here to make
 #	the double-colon recipe run only when any target from group does not exist
@@ -219,6 +258,7 @@ $(DEPENDCHECKFILES) &:: $(RUNDEPS)
 	@if sudo steamos-readonly status 2>/dev/null | grep -q 'enabled';then \
 		echo "true">$(MEMORYDEPS);\
 		echo "Read only filesystem enabled. Disabling...";\
+		echo "steamos-readonly disable &>/dev/null" $(INSILENT);\
 		sudo steamos-readonly disable &>/dev/null;\
 	else \
 		echo "false">$(MEMORYDEPS);\
@@ -231,13 +271,20 @@ $(DEPENDCHECKFILES) &:: $(RUNDEPS)
 
 # Build
 
-release: 			$(RELEASEPATH)
+release: 			$(SYMRELEASE)
+debug: 				$(SYMDEBUG)
+
+$(SYMRELEASE):	$(RELEASEPATH)
+$(SYMDEBUG):	$(DEBUGPATH)
+
+$(SYMRELEASE) $(SYMDEBUG):
+	@echo "Creating symbolic link for quick launch: ./$@"
+	rm -f $@
+	ln -s $^ $@
 
 $(RELEASEPATH): $(RELEASEOBJECTS) | $(CHECKDEPS) $(RELEASEDIR)
 	@echo "Linking into $@"
 	$(CC) $(filter %.o,$^) $(RELEASEPARS) $(ADDLIBS) -o $@
-
-debug: 				$(DEBUGPATH)
 
 $(DEBUGPATH): $(DEBUGOBJECTS) | $(CHECKDEPS) $(DEBUGDIR)
 	@echo "Linking into $@"
@@ -249,7 +296,7 @@ $(DEBUGPATH): $(DEBUGOBJECTS) | $(CHECKDEPS) $(DEBUGDIR)
 
 preparepkg: 		$(PKGBINFILES)
 
-$(PKGBINFILES) &: 	$(RELEASEPATH) $(PACKAGEFILES) | $(PKGBINDIR) $(PKGPREPDIR)
+$(PKGBINFILES) &: 	$(SYMRELEASE) $(PACKAGEFILES) | $(PKGBINDIR) $(PKGPREPDIR)
 	@echo "Preparing binary package files in $(PKGPREPDIR)"
 	rm -rf $(PKGPREPDIR)/*
 	cp $(RELEASEPATH) $(PKGPREPDIR)/
@@ -264,30 +311,32 @@ $(PKGBINPATH): 		$(PKGBINFILES)
 
 # Clean
 
-clean: 	dbgclean relclean | afterany
+clean: 	dbgclean relclean
 	rm -f $(MKTMPFILE)
 
-relclean: | afterany
+relclean:
 	@echo "Removing release build and objects"
 	rm -f $(OBJRELEASEDIR)/*.$(OBJEXT)
 	rm -f $(RELEASEPATH)
+	rm -f $(SYMRELEASE)
 	
-dbgclean: | afterany
+dbgclean:
 	@echo "Removing debug build and objects"
 	rm -f $(OBJDEBUGDIR)/*.$(OBJEXT)
 	rm -f $(DEBUGPATH)
+	rm -f $(SYMDEBUG)
 
-pkgclean: pkgprepclean pkgbinclean | afterany
+pkgclean: pkgprepclean pkgbinclean
 
-pkgprepclean: | afterany
+pkgprepclean:
 	@echo "Removing package files"
 	rm -rf $(PKGPREPDIR)
 
-pkgbinclean: | afterany
+pkgbinclean:
 	@echo "Removing binary package"
 	rm -f $(PKGBINPATH)
 
-cleanall: clean pkgclean | afterany
+cleanall: clean pkgclean
 	@echo "Removing object,binary and binary package directories"
 	rm -rf $(PKGBINDIR) $(OBJDIR) $(BINDIR)
 
@@ -299,9 +348,11 @@ install: $(PKGBINFILES)
 
 # Uninstall
 
+.IGNORE: uninstall
+
 uninstall:
 	@echo "Uninstalling"
-	cd ~/$(EXENAME)/ && ./uninstall.sh
+	[ -f ~/$(EXENAME)/uninstall.sh ] && ~/$(EXENAME)/uninstall.sh || echo "Package is not installed."
 
 # Directories
 
@@ -339,8 +390,16 @@ $(DEPENDCHECKFILES) :: $(RUNDEPS) | $$(call removefrom,$$(call getpos,$$@,$(DEPE
 
 # Build
 
+GETHEADERSNEC := $(or $(if $(MAKECMDGOALS),,x),$(findstring release,$(MAKECMDGOALS)),$(findstring debug,$(MAKECMDGOALS))\
+,$(findstring install,$(MAKECMDGOALS)),$(findstring createpkg,$(MAKECMDGOALS)),$(findstring preparepkg,$(MAKECMDGOALS)))
+
+ifneq ($(GETHEADERSNEC),)
 # 	Auxiliary function that uses compiler to generate list of headers the source file depends on
-getheaders=$(shell $(CC) -M -I $(HEADERDIR)/ $1 2>/dev/null | sed 's/.*\.o://' | sed 's/ \\//g' | tr '\n' ' ')
+getheaders=$(shell $(CC) -M -I $(HEADERDIR)/ $1 2>/dev/null | sed 's/.*\.o://' | sed 's/ \\//g' | tr '\n' ' '; \
+			 echo "$(CC) -M -I $(HEADERDIR)/ $1 2>/dev/null | sed 's/.*\.o://' | sed 's/ \\//g' | tr '\n' ' '" $(DUMMYSHELLSILENT))
+else
+getheaders=
+endif
 
 #	Release
 #	Build object files

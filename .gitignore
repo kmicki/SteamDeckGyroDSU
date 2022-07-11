@@ -33,6 +33,8 @@ obj/
 *.app
 bin/
 pkgbin/
+launch
+launchdebug
 
 # Logs
 *.log
