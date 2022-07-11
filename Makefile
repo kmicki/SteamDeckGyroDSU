@@ -159,11 +159,12 @@ PKGBINFILES := $(PKGPREPDIR)/$(EXENAME) $(subst $(PKGDIR)/,$(PKGPREPDIR)/,$(PACK
 
 .DEFAULT_GOAL := release
 
-# After any target - clear temporary files
 afterany:
 	@rm -f $(FINISHDEPS)
 	@rm -f $(RUNDEPS)
 	@rm -f $(MEMORYDEPS)
+	@rm -f $(CHECKDEPS)
+	@echo "Cleaned temporary files"
 
 # Prepare
 
@@ -175,10 +176,22 @@ $(shell touch -d "1990-01-01" $(RUNDEPS) &>/dev/null)
 FINISHDEPS := mk_deps.tmp
 $(shell touch $(FINISHDEPS) &>/dev/null)
 
+#	Final file
+CHECKDEPS := mk_chdeps.tmp
+$(shell touch -d "1990-01-01"  $(CHECKDEPS) &>/dev/null)
+
 #	Temporary file for storing information between preparation and finish script
 MEMORYDEPS := mk_deps_mem.tmp
 
-prepare: 		$(FINISHDEPS) | afterany
+prepare: 		$(CHECKDEPS)
+
+# After any target - clear temporary files
+$(CHECKDEPS): $(FINISHDEPS)
+	@rm -f $(FINISHDEPS)
+	@rm -f $(RUNDEPS)
+	@rm -f $(MEMORYDEPS)
+	@rm -f $(CHECKDEPS)
+	@echo "Cleaned temporary files"
 
 #	Initially memory file does not exist - require it.
 #	Creating it will trigger updates of dependencies (see below)
@@ -216,15 +229,15 @@ $(DEPENDCHECKFILES) &:: $(RUNDEPS)
 
 # Build
 
-release: 			$(RELEASEPATH) | afterany
+release: 			$(RELEASEPATH)
 
-$(RELEASEPATH): $(RELEASEOBJECTS) | $(FINISHDEPS) $(RELEASEDIR)
+$(RELEASEPATH): $(RELEASEOBJECTS) | $(CHECKDEPS) $(RELEASEDIR)
 	@echo "Linking into $@"
 	$(CC) $(filter %.o,$^) $(RELEASEPARS) $(ADDLIBS) -o $@
 
-debug: 				$(DEBUGPATH) | afterany
+debug: 				$(DEBUGPATH)
 
-$(DEBUGPATH): $(DEBUGOBJECTS) | $(FINISHDEPS) $(DEBUGDIR)
+$(DEBUGPATH): $(DEBUGOBJECTS) | $(CHECKDEPS) $(DEBUGDIR)
 	@echo "Linking into $@"
 	$(CC) $(filter %.o,$^) $(DEBUGPARS) $(ADDLIBS) -o $@
 
@@ -232,7 +245,7 @@ $(DEBUGPATH): $(DEBUGOBJECTS) | $(FINISHDEPS) $(DEBUGDIR)
 
 # Binary package
 
-preparepkg: 		$(PKGBINFILES) | afterany
+preparepkg: 		$(PKGBINFILES)
 
 $(PKGBINFILES) &: 	$(RELEASEPATH) $(PACKAGEFILES) | $(PKGBINDIR) $(PKGPREPDIR)
 	@echo "Preparing binary package files in $(PKGPREPDIR)"
@@ -240,7 +253,7 @@ $(PKGBINFILES) &: 	$(RELEASEPATH) $(PACKAGEFILES) | $(PKGBINDIR) $(PKGPREPDIR)
 	cp $(RELEASEPATH) $(PKGPREPDIR)/
 	cp $(PKGDIR)/* $(PKGPREPDIR)/
 
-createpkg: 			$(PKGBINPATH) | afterany
+createpkg: 			$(PKGBINPATH)
 
 $(PKGBINPATH): 		$(PKGBINFILES)
 	@echo "Zipping package files into a binary package $@"
@@ -278,7 +291,7 @@ cleanall: clean pkgclean | afterany
 
 # Install
 
-install: $(PKGBINFILES) | afterany
+install: $(PKGBINFILES)
 	@echo "Installing"
 	cd $(PKGPREPDIR) && ./$(INSTALLSCRIPT)
 
@@ -324,13 +337,13 @@ getheaders=$(shell $(CC) -M -I $(HEADERDIR)/ $(subst __,/,$(subst .$(OBJEXT),.$(
 #	Release
 #	Build object files
 
-$(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(FINISHDEPS) $(OBJRELEASEDIR)
+$(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(CHECKDEPS) $(OBJRELEASEDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(RELEASEPARS) -o $@
 
 #	Debug
 #	Build object files
 
-$(DEBUGOBJECTS): $(OBJDEBUGDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(FINISHDEPS) $(OBJDEBUGDIR)
+$(DEBUGOBJECTS): $(OBJDEBUGDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(CHECKDEPS) $(OBJDEBUGDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(DEBUGPARS) -o $@
