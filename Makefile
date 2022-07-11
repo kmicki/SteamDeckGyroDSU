@@ -340,18 +340,22 @@ $(DEPENDCHECKFILES) :: $(RUNDEPS) | $$(call removefrom,$$(call getpos,$$@,$(DEPE
 # Build
 
 # 	Auxiliary function that uses compiler to generate list of headers the source file depends on
-getheaders=$(shell $(CC) -M -I $(HEADERDIR)/ $(subst __,/,$(subst .$(OBJEXT),.$(SRCEXT),$(subst $(OBJRELEASEDIR)/,$(SRCDIR)/,$1))) 2>/dev/null | sed 's/.*\.o://' | sed 's/ \\//g' | tr '\n' ' ')
+getheaders=$(shell $(CC) -M -I $(HEADERDIR)/ $1 2>/dev/null | sed 's/.*\.o://' | sed 's/ \\//g' | tr '\n' ' ')
 
 #	Release
 #	Build object files
 
-$(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(CHECKDEPS) $(OBJRELEASEDIR)
+$(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) \
+  $$(call getheaders,$$(subst __,/,$$(subst .$(OBJEXT),.$(SRCEXT),$$(subst $(OBJRELEASEDIR)/,$(SRCDIR)/,$$@)))) \
+  | $$(CHECKDEPS) $(OBJRELEASEDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(RELEASEPARS) -o $@
 
 #	Debug
 #	Build object files
 
-$(DEBUGOBJECTS): $(OBJDEBUGDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(CHECKDEPS) $(OBJDEBUGDIR)
+$(DEBUGOBJECTS): $(OBJDEBUGDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) \
+  $$(call getheaders,$$(subst __,/,$$(subst .$(OBJEXT),.$(SRCEXT),$$(subst $(OBJDEBUGDIR)/,$(SRCDIR)/,$$@)))) \
+  | $$(CHECKDEPS) $(OBJDEBUGDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(DEBUGPARS) -o $@
