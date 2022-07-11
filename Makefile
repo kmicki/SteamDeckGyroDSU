@@ -4,6 +4,11 @@
 ##		- single extension of compiled source files
 ##		- compilation with gcc or compatible
 
+# Parallel by default
+
+CPUS ?= $(shell nproc || echo 1)
+MAKEFLAGS += --jobs=$(CPUS)
+
 # Configuration
 
 # 	Main directories
@@ -66,17 +71,23 @@ PREPARESCRIPT = scripts/prepare.sh
 #	Dependency check (Steam Deck)
 #	Some libraries have to be reinstalled on Steam Deck because haeder files are missing
 
-# 		Check files - these files existence will be checked to determine if 
-#		the corresponding dependency is properly installed
-DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/vector)) /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/ncurses.h
+# 	Check files - these files existence will be checked to determine if 
+#	the corresponding dependency is properly installed
+DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/) /usr/include/c++/*/)vector /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/ncurses.h
 
-# 		Dependencies - names of packages to install with pacman -S
-#		if the corresponding check file is not found
+# 	Dependencies - names of packages to install with pacman -S
+#	if the corresponding check file is not found
 DEPENDENCIES := gcc glibc linux-api-headers ncurses
 
 # Functions
 
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
+
+getiterator=$(shell seq 1 $(words $1))
+getpos=$(firstword $(foreach i,$(call getiterator,$2),$(if $(findstring $1,$(word $i,$2)),$i )))
+getmatch=$(word $(call getpos,$1,$2),$3)
+remove=$(foreach x,$2,$(if $(findstring $1,$x,,$x )))
+removefrom=$(foreach i,$(call getiterator,$2),$(if $(shell if [[ $i -lt $1 ]]; then echo "x"; fi),$(word $i,$2) ))
 
 # Generated variables
 
@@ -144,33 +155,84 @@ PKGBINFILES := $(PKGPREPDIR)/$(EXENAME) $(subst $(PKGDIR)/,$(PKGPREPDIR)/,$(PACK
 .PHONY: pkgprepclean	# Clean files prepared for binary package
 .PHONY: cleanall		# Clean all artifacts (deletes $BINDIR, $OBJDIR, $PKGBINDIR)
 .PHONY: install			# Run install script in prepared binary package files
+.PHONY: afterany		# Target that runs always after any other phony target
+
+.DEFAULT_GOAL := release
+
+# After any target - clear temporary files
+afterany:
+	@rm -f $(FINISHDEPS)
+	@rm -f $(RUNDEPS)
+	@rm -f $(MEMORYDEPS)
 
 # Prepare
 
-prepare: 		$(DEPENDCHECKFILES)
+#	Temporary file for running double-colon rules only when target doesn't exist
+RUNDEPS := mk_deps_run.tmp
+$(shell touch -d "1990-01-01" $(RUNDEPS) &>/dev/null)
 
-$(DEPENDCHECKFILES) &:
-	@echo "Prepare dependencies"
-	deps=( $(DEPENDENCIES) ) && files=( $(DEPENDCHECKFILES) ) && ./$(PREPARESCRIPT) "$${#deps[@]}" "$${deps[@]}" "$${#files[@]}" "$${files[@]}"
+#	Temporary file for running finishing commands if dependencies are reinstalled
+FINISHDEPS := mk_deps.tmp
+$(shell touch $(FINISHDEPS) &>/dev/null)
+
+#	Temporary file for storing information between preparation and finish script
+MEMORYDEPS := mk_deps_mem.tmp
+
+prepare: 		$(FINISHDEPS) | afterany
+
+#	Initially memory file does not exist - require it.
+#	Creating it will trigger updates of dependencies (see below)
+#	After that, run finishing commands
+$(FINISHDEPS): $(MEMORYDEPS)
+	@if grep -q true $(MEMORYDEPS); then \
+		echo "Reenabling read-only filesystem";\
+		sudo steamos-readonly enable &>/dev/null;\
+	fi
+	@echo "Required dependencies reinstalled."
+
+#	Memory file is created by preparation commands of dependency reinstalls
+#	If no dependency needs a reinstall, file is created with old date
+#	(to prevent finishing script from running)
+$(MEMORYDEPS): $(DEPENDCHECKFILES)
+	@if [ ! -f $(MEMORYDEPS) ]; then touch -d "1990-01-01" $(MEMORYDEPS); fi
+
+#	Preparation. Fake dependency with old date is added here to make
+#	the double-colon recipe run only when any target from group does not exist
+$(DEPENDCHECKFILES) &:: $(RUNDEPS)
+	@echo "Some dependencies missing. Reinstall."
+	@echo "Check read-only filesystem"
+	@if sudo steamos-readonly status 2>/dev/null | grep -q 'enabled';then \
+		echo "true">$(MEMORYDEPS);\
+		echo "Read only filesystem enabled. Disabling...";\
+		sudo steamos-readonly disable &>/dev/null;\
+	else \
+		echo "false">$(MEMORYDEPS);\
+	fi
+	@echo "Initializing package manager..."
+	@sudo pacman-key --init &>/dev/null
+	@sudo pacman-key --populate &>/dev/null
+
+#  See second expansion at the bottom
 
 # Build
-# See also second expansion at the end
 
-release: 			$(RELEASEPATH)
+release: 			$(RELEASEPATH) | afterany
 
-$(RELEASEPATH): $(DEPENDCHECKFILES) $(RELEASEOBJECTS) | $(RELEASEDIR)
+$(RELEASEPATH): $(RELEASEOBJECTS) | $(FINISHDEPS) $(RELEASEDIR)
 	@echo "Linking into $@"
 	$(CC) $(filter %.o,$^) $(RELEASEPARS) $(ADDLIBS) -o $@
 
-debug: 				$(DEBUGPATH)
+debug: 				$(DEBUGPATH) | afterany
 
-$(DEBUGPATH): $(DEPENDCHECKFILES) $(DEBUGOBJECTS) | $(DEBUGDIR)
+$(DEBUGPATH): $(DEBUGOBJECTS) | $(FINISHDEPS) $(DEBUGDIR)
 	@echo "Linking into $@"
 	$(CC) $(filter %.o,$^) $(DEBUGPARS) $(ADDLIBS) -o $@
 
+# See also second expansion at the end
+
 # Binary package
 
-preparepkg: 		$(PKGBINFILES)
+preparepkg: 		$(PKGBINFILES) | afterany
 
 $(PKGBINFILES) &: 	$(RELEASEPATH) $(PACKAGEFILES) | $(PKGBINDIR) $(PKGPREPDIR)
 	@echo "Preparing binary package files in $(PKGPREPDIR)"
@@ -178,7 +240,7 @@ $(PKGBINFILES) &: 	$(RELEASEPATH) $(PACKAGEFILES) | $(PKGBINDIR) $(PKGPREPDIR)
 	cp $(RELEASEPATH) $(PKGPREPDIR)/
 	cp $(PKGDIR)/* $(PKGPREPDIR)/
 
-createpkg: 			$(PKGBINPATH)
+createpkg: 			$(PKGBINPATH) | afterany
 
 $(PKGBINPATH): 		$(PKGBINFILES)
 	@echo "Zipping package files into a binary package $@"
@@ -187,35 +249,36 @@ $(PKGBINPATH): 		$(PKGBINFILES)
 
 # Clean
 
-clean: 	dbgclean relclean
+clean: 	dbgclean relclean | afterany
+	rm -f $(MKTMPFILE)
 
-relclean:
+relclean: | afterany
 	@echo "Removing release build and objects"
 	rm -f $(OBJRELEASEDIR)/*.$(OBJEXT)
 	rm -f $(RELEASEPATH)
 	
-dbgclean:
+dbgclean: | afterany
 	@echo "Removing debug build and objects"
 	rm -f $(OBJDEBUGDIR)/*.$(OBJEXT)
 	rm -f $(DEBUGPATH)
 
-pkgclean: pkgprepclean pkgbinclean
+pkgclean: pkgprepclean pkgbinclean | afterany
 
-pkgprepclean:
+pkgprepclean: | afterany
 	@echo "Removing package files"
 	rm -rf $(PKGPREPDIR)
 
-pkgbinclean:
+pkgbinclean: | afterany
 	@echo "Removing binary package"
 	rm -f $(PKGBINPATH)
 
-cleanall: clean pkgclean
+cleanall: clean pkgclean | afterany
 	@echo "Removing object,binary and binary package directories"
 	rm -rf $(PKGBINDIR) $(OBJDIR) $(BINDIR)
 
 # Install
 
-install: $(PKGBINFILES)
+install: $(PKGBINFILES) | afterany
 	@echo "Installing"
 	cd $(PKGPREPDIR) && ./$(INSTALLSCRIPT)
 
@@ -241,19 +304,33 @@ $(OBJDIR) $(BINDIR) $(PKGDIR) $(PKGBINDIR):
 
 .SECONDEXPANSION:
 
+# Prepare
+
+.IGNORE: $(DEPENDCHECKFILES)
+
+#	Reinstall. Normal multiple target. Each dependency check file is
+#	checked if it is missing. If it is, then package is reinstalled.
+#	Second expansion of order only dependency is so that this targets will not run in parallel
+$(DEPENDCHECKFILES) :: $(RUNDEPS) | $$(call removefrom,$$(call getpos,$$@,$(DEPENDCHECKFILES)),$(DEPENDCHECKFILES))
+	@echo -e "Missing $@. Reinstalling \e[1m$(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES))\e[0m..."
+	@sudo pacman -S --noconfirm $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
+
+
+# Build
+
 # 	Auxiliary function that uses compiler to generate list of headers the source file depends on
 getheaders=$(shell $(CC) -M -I $(HEADERDIR)/ $(subst __,/,$(subst .$(OBJEXT),.$(SRCEXT),$(subst $(OBJRELEASEDIR)/,$(SRCDIR)/,$1))) 2>/dev/null | sed 's/.*\.o://' | sed 's/ \\//g' | tr '\n' ' ')
 
 #	Release
 #	Build object files
 
-$(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) $$(DEPENDCHECKFILES) | $(OBJRELEASEDIR)
+$(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(FINISHDEPS) $(OBJRELEASEDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(RELEASEPARS) -o $@
 
 #	Debug
 #	Build object files
 
-$(DEBUGOBJECTS): $(OBJDEBUGDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) $$(DEPENDCHECKFILES) | $(OBJDEBUGDIR)
+$(DEBUGOBJECTS): $(OBJDEBUGDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) $$(call getheaders,$$@) | $$(FINISHDEPS) $(OBJDEBUGDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(DEBUGPARS) -o $@

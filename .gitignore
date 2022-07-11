@@ -34,6 +34,9 @@ obj/
 bin/
 pkgbin/
 
+# Logs
 *.log
 
+# Additional files
 *.hex
+*.tmp
