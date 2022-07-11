@@ -1,5 +1,5 @@
 # SteamDeckGyroDSU
-DSU (cemuhook protocol) server for motion data.
+DSU (cemuhook protocol) server for motion data for Steam Deck.
 
 ## Install/Update
 

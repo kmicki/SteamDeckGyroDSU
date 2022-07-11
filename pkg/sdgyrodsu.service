@@ -11,3 +11,4 @@ ExecStart=%h/sdgyrodsu/sdgyrodsu
 
 [Install]
 WantedBy=default.target
+
