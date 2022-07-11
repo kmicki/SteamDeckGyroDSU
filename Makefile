@@ -346,8 +346,7 @@ getheaders=$(shell $(CC) -M -I $(HEADERDIR)/ $1 2>/dev/null | sed 's/.*\.o://' |
 #	Build object files
 
 $(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) \
-  $$(call getheaders,$$(subst __,/,$$(subst .$(OBJEXT),.$(SRCEXT),$$(subst $(OBJRELEASEDIR)/,$(SRCDIR)/,$$@)))) \
-  | $$(CHECKDEPS) $(OBJRELEASEDIR)
+  $$(call getheaders,$$(subst __,/,$(SRCDIR)/%.$(SRCEXT))) | $$(CHECKDEPS) $(OBJRELEASEDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(RELEASEPARS) -o $@
 
@@ -355,7 +354,6 @@ $(RELEASEOBJECTS): $(OBJRELEASEDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRC
 #	Build object files
 
 $(DEBUGOBJECTS): $(OBJDEBUGDIR)/%.$(OBJEXT): $$(subst __,/,$(SRCDIR)/%.$(SRCEXT)) \
-  $$(call getheaders,$$(subst __,/,$$(subst .$(OBJEXT),.$(SRCEXT),$$(subst $(OBJDEBUGDIR)/,$(SRCDIR)/,$$@)))) \
-  | $$(CHECKDEPS) $(OBJDEBUGDIR)
+  $$(call getheaders,$$(subst __,/,$(SRCDIR)/%.$(SRCEXT))) | $$(CHECKDEPS) $(OBJDEBUGDIR)
 	@echo "Building $< into $@"
 	$(CC) $< -c $(DEBUGPARS) -o $@
