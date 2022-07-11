@@ -210,6 +210,8 @@ MEMORYDEPS := mk_deps_mem.tmp
 
 prepare: 		$(CHECKDEPS)
 
+BASICFLAGS = $(if $(findstring -,$(word 1,$(MAKEFLAGS))),,-$(word 1,$(MAKEFLAGS)))
+
 # Clean temporary files after dependencies are checked
 $(CHECKDEPS): $(FINISHDEPS)
 	@echo "Cleaning temporary files"
@@ -221,8 +223,8 @@ ifneq ($(MAKECMDGOALS),prepare)
 		echo "rm -f $(MEMORYDEPS)" $(INSILENT);\
 		rm -f $(MEMORYDEPS);\
 		echo "Dependencies were reinstalled. Restarting make.";\
-		echo "$(MAKE) $(MAKECMDGOALS)" $(INSILENT);\
-		$(MAKE) $(MAKECMDGOALS);\
+		echo "$(MAKE) $(BASICFLAGS) $(MAKECMDGOALS)" $(INSILENT);\
+		$(MAKE) $(BASICFLAGS) $(MAKECMDGOALS);\
 		echo "Ignore error below. Make has finished.";\
 		echo "false" $(INSILENT);\
 		false;\
