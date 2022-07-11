@@ -155,7 +155,8 @@ PKGBINFILES := $(PKGPREPDIR)/$(EXENAME) $(subst $(PKGDIR)/,$(PKGPREPDIR)/,$(PACK
 .PHONY: pkgprepclean	# Clean files prepared for binary package
 .PHONY: cleanall		# Clean all artifacts (deletes $BINDIR, $OBJDIR, $PKGBINDIR)
 .PHONY: install			# Run install script in prepared binary package files
-.PHONY: afterany		# Target that runs always after any other phony target
+.PHONY: afterany		# Target that runs after some targets
+.PHONY: uninstall		# Uninstall package
 
 .DEFAULT_GOAL := release
 
@@ -295,6 +296,12 @@ cleanall: clean pkgclean | afterany
 install: $(PKGBINFILES)
 	@echo "Installing"
 	cd $(PKGPREPDIR) && ./$(INSTALLSCRIPT)
+
+# Uninstall
+
+uninstall:
+	@echo "Uninstalling"
+	cd ~/$(EXENAME)/ && ./uninstall.sh
 
 # Directories
 
