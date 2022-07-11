@@ -159,11 +159,12 @@ PKGBINFILES := $(PKGPREPDIR)/$(EXENAME) $(subst $(PKGDIR)/,$(PKGPREPDIR)/,$(PACK
 
 .DEFAULT_GOAL := release
 
+# Clean temporary files after some targets
 afterany:
-	@rm -f $(FINISHDEPS)
-	@rm -f $(RUNDEPS)
-	@rm -f $(MEMORYDEPS)
-	@rm -f $(CHECKDEPS)
+	rm -f $(FINISHDEPS)
+	rm -f $(RUNDEPS)
+	rm -f $(MEMORYDEPS)
+	rm -f $(CHECKDEPS)
 	@echo "Cleaned temporary files"
 
 # Prepare
@@ -185,12 +186,12 @@ MEMORYDEPS := mk_deps_mem.tmp
 
 prepare: 		$(CHECKDEPS)
 
-# After any target - clear temporary files
+# Clean temporary files after dependencies are checked
 $(CHECKDEPS): $(FINISHDEPS)
-	@rm -f $(FINISHDEPS)
-	@rm -f $(RUNDEPS)
-	@rm -f $(MEMORYDEPS)
-	@rm -f $(CHECKDEPS)
+	rm -f $(FINISHDEPS)
+	rm -f $(RUNDEPS)
+	rm -f $(MEMORYDEPS)
+	rm -f $(CHECKDEPS)
 	@echo "Cleaned temporary files"
 
 #	Initially memory file does not exist - require it.
@@ -222,8 +223,8 @@ $(DEPENDCHECKFILES) &:: $(RUNDEPS)
 		echo "false">$(MEMORYDEPS);\
 	fi
 	@echo "Initializing package manager..."
-	@sudo pacman-key --init &>/dev/null
-	@sudo pacman-key --populate &>/dev/null
+	sudo pacman-key --init &>/dev/null
+	sudo pacman-key --populate &>/dev/null
 
 #  See second expansion at the bottom
 
@@ -326,7 +327,7 @@ $(OBJDIR) $(BINDIR) $(PKGDIR) $(PKGBINDIR):
 #	Second expansion of order only dependency is so that this targets will not run in parallel
 $(DEPENDCHECKFILES) :: $(RUNDEPS) | $$(call removefrom,$$(call getpos,$$@,$(DEPENDCHECKFILES)),$(DEPENDCHECKFILES))
 	@echo -e "Missing $@. Reinstalling \e[1m$(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES))\e[0m..."
-	@sudo pacman -S --noconfirm $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
+	sudo pacman -S --noconfirm $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
 
 
 # Build
