@@ -60,7 +60,7 @@ ADDPARS =
 # 		Additional parameters for release build
 ADDRELEASEPARS = -O3
 # 		Additional parameters for debug build
-ADDDEBUGPARS =
+ADDDEBUGPARS = -g
 # 		Additional libraries parameters
 ADDLIBS = -pthread -lncurses
 
@@ -151,15 +151,16 @@ INSILENT := $(if $(SILENTFLAG),&>/dev/null)
 DUMMYSHELLSILENT := $(if $(SILENTFLAG),&>/dev/null,1>&2)
 SHELLSILENT := $(if $(SILENTFLAG),2>/dev/null,)
 
+# Comment this section if make should not be silent
+.SILENT:
+# Silent inside recipes loops,ifs etc:
+INSILENT := &>/dev/null
+DUMMYSHELLSILENT := &>/dev/null
+SHELLSILENT := 2>/dev/null
+
 $(shell echo "Makefile flags: $(MAKEFLAGS)" $(DUMMYSHELLSILENT))
 
 $(shell echo "Makefile targets: $(MAKECMDGOALS)" $(DUMMYSHELLSILENT))
-
-# .SILENT:
-# Silent inside recipes loops,ifs etc:
-# INSILENT := &>/dev/null
-# DUMMYSHELLSILENT := &>/dev/null
-# SHELLSILENT := 2>/dev/null
 
 # Phony Targets
 .PHONY: release			# Release build - generate executable $BINDIR/$RELEASE/$EXENAME
