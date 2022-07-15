@@ -5,11 +5,9 @@
 namespace kmicki::config
 {
     template<class T>
-    ConfigItem<T>::ConfigItem(std::string const& name, T const& val)
-    {
-        Name = name;
-        Val = val;
-    }
+    ConfigItem<T>::ConfigItem(std::string const& name, T const& val, ConfigComment const& comment)
+    : ConfigItemBase(name,comment), Val(val)
+    { }
 
     template<class T>
     void Config::SetValue(std::string const& name, T const& value)

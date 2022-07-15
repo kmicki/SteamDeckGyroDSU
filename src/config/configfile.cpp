@@ -17,11 +17,10 @@ namespace kmicki::config
     }
 
     const char ConfigFile::cSeparator = ':';
+    const char cCommentPrefix = '#';
 
     bool ConfigFile::LoadConfig(std::vector<std::unique_ptr<ConfigItemBase>> & configuration) const
     {
-        static const int cBufLen = 500;
-        static const char cCommentPrefix = '#';
 
         { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Loading configuration from file: " << filePath; }
         std::ifstream file(filePath);
@@ -31,8 +30,6 @@ namespace kmicki::config
             return false;
         }
 
-        char buf[cBufLen];
-
         int line = 0;
 
         std::string precedingComment = "";
@@ -40,15 +37,19 @@ namespace kmicki::config
         while(!file.eof())
         {
             ++line;
-            file.getline(buf,cBufLen);
-            std::string str(buf);
+            std::string str;
+            std::getline(file,str);
+
+            auto c = str.begin();
+            while(std::isspace(*c))
+                c = str.erase(c);
 
             // detect preceding comment
             if(*(str.begin()) == cCommentPrefix)
             {
                 str.erase(str.begin());
 
-                auto c = str.begin();
+                c = str.begin();
                 while(std::isspace(*c))
                     c = str.erase(c);
 
@@ -64,7 +65,7 @@ namespace kmicki::config
             std::string inlineComment = "";
 
             // remove white space and comment
-            auto c = str.begin();
+            c = str.begin();
             while(c != str.end())
                 if(std::isspace(*c))
                     c = str.erase(c);
@@ -113,13 +114,19 @@ namespace kmicki::config
             if(item == configuration.end())
             {
                 { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Line " << line << " - new item, Name=" << name << " Value=" << value; }
-                configuration.emplace_back(new ConfigItem<std::string>(name,value));
+                configuration.emplace_back(new ConfigItem<std::string>(name,value,ConfigComment{ precedingCommentAll, inlineComment }));
                 continue;
             }
 
             std::string msg;
             if((*item)->Update(value,msg))
+            {
                 { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Line " << line << " - " << msg; }
+                if(!precedingCommentAll.empty())
+                    (*item)->Comment.PrecedingComment = precedingCommentAll;
+                if(!inlineComment.empty())
+                    (*item)->Comment.InlineComment = inlineComment;
+            }
             else
                 { LogF(LogLevelDebug) << "ConfigFile::LoadConfig: Line " << line << " - " << msg; }
         }
@@ -152,8 +159,16 @@ namespace kmicki::config
         int line = 0;
         for(auto& item : configuration)
         {
+            std::stringstream cmt(item->Comment.PrecedingComment);
+            std::string cmtLine;
+            while(std::getline(cmt,cmtLine))
+                file << cCommentPrefix << ' ' << cmtLine << '\n';
+
             std::string value = item->ValToString();
-            file << std::setw(max) << std::left << item->Name << ' ' << cSeparator << ' ' << value << std::endl;
+            file << std::setw(max) << std::left << item->Name << ' ' << cSeparator << ' ' << value;
+            if(!item->Comment.InlineComment.empty())
+                file << ' ' << cCommentPrefix << ' ' << item->Comment.InlineComment;
+            file << '\n';
             { LogF(LogLevelTrace) << "ConfigFile::SaveConfig: Line " << ++line << " - saved item, Name=" << item->Name << " Value=" << value; }
         }
 

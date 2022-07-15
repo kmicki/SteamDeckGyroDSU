@@ -8,9 +8,17 @@
 
 namespace kmicki::config
 {
+    struct ConfigComment
+    {
+        std::string PrecedingComment = "";
+        std::string InlineComment = "";
+    };
+
     struct ConfigItemBase
     {
+        ConfigItemBase(std::string name, ConfigComment comment = ConfigComment());
         std::string Name;
+        ConfigComment Comment;
         virtual bool Update(std::string const& value,std::string & message) = 0;
         virtual std::string ValToString() const = 0;
     };
@@ -21,7 +29,7 @@ namespace kmicki::config
     struct ConfigItem : public ConfigItemBase
     {
         ConfigItem() = delete;
-        ConfigItem(std::string const& name, T const& val);
+        ConfigItem(std::string const& name, T const& val, ConfigComment const& comment = ConfigComment());
         T Val; //value
         bool Update(std::string const& value,std::string & message) override;
         std::string ValToString() const override;
@@ -30,6 +38,7 @@ namespace kmicki::config
     class Config
     {
         public:
+
         Config() = delete;
         Config(Data & _configData, std::string const& _prefix = "");
         Data & ConfigData();

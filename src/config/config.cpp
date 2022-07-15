@@ -6,6 +6,10 @@
 
 namespace kmicki::config
 {
+    ConfigItemBase::ConfigItemBase(std::string name, ConfigComment comment)
+    : Name(name), Comment(comment)
+    {}
+    
     template<>
     bool ConfigItem<std::string>::Update(std::string const& value,std::string & message)
     {
