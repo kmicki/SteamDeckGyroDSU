@@ -19,6 +19,7 @@ using namespace kmicki::cemuhook;
 
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 const bool cRunPresenter = false;
+const bool cRunServer = true;
 
 const int cFrameLen = 64;       // Steam Deck Controls' custom HID report length in bytes
 const int cScanTimeUs = 4000;   // Steam Deck Controls' period between received report data in microseconds
@@ -107,16 +108,22 @@ int main()
 
     reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
 
-    CemuhookAdapter adapter(reader);
-    Server server(adapter);
+    if(cRunServer)
+    {
+        CemuhookAdapter adapter(reader);
+        Server server(adapter);
+    }
 
     uint32_t lastInc = 0;
     int stopping = 0;
 
     std::unique_ptr<std::thread> presenter;
     if(cRunPresenter)
+    {
         presenter.reset(new std::thread(PresenterRun,&reader));
-
+        if(!cRunServer)
+            reader.Start();
+    }
     {
         std::unique_lock lock(stopMutex);
         stopCV.wait(lock,[]{ return stop; });
