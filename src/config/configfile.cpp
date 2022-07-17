@@ -49,10 +49,6 @@ namespace kmicki::config
             {
                 str.erase(str.begin());
 
-                c = str.begin();
-                while(std::isspace(*c))
-                    c = str.erase(c);
-
                 precedingComment.append(str);
                 precedingComment.push_back('\n');
 
@@ -135,6 +131,22 @@ namespace kmicki::config
         return true;
     }
 
+    static bool InsertComment(std::ostream & stream, std::string const& comment, bool inlineComment = false)
+    {
+        bool add = !comment.empty();
+        if(add)
+        {
+            if(inlineComment)
+                stream << ' '; 
+            stream << cCommentPrefix;
+            if(!std::isspace(*(comment.cbegin())))
+                stream << ' ';
+            stream << comment;
+        }
+        stream << '\n';
+        return add;
+    }
+
     bool ConfigFile::SaveConfig(std::vector<std::unique_ptr<ConfigItemBase>> const& configuration,bool pretty) const
     {
         { LogF(LogLevelTrace) << "ConfigFile::SaveConfig: Saving configuration to file: " << filePath; }
@@ -162,13 +174,11 @@ namespace kmicki::config
             std::stringstream cmt(item->Comment.PrecedingComment);
             std::string cmtLine;
             while(std::getline(cmt,cmtLine))
-                file << cCommentPrefix << ' ' << cmtLine << '\n';
+                InsertComment(file,cmtLine);
 
             std::string value = item->ValToString();
             file << std::setw(max) << std::left << item->Name << ' ' << cSeparator << ' ' << value;
-            if(!item->Comment.InlineComment.empty())
-                file << ' ' << cCommentPrefix << ' ' << item->Comment.InlineComment;
-            file << '\n';
+            InsertComment(file,item->Comment.InlineComment,true);
             { LogF(LogLevelTrace) << "ConfigFile::SaveConfig: Line " << ++line << " - saved item, Name=" << item->Name << " Value=" << value; }
         }
 
