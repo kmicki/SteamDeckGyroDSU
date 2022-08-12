@@ -182,6 +182,7 @@ $(shell echo "Makefile targets: $(MAKECMDGOALS)" $(DUMMYSHELLSILENT))
 
 # Prepare
 
+ifndef NOPREPARE
 
 TEMPFILESNEC := $(or $(if $(MAKECMDGOALS),,x),$(findstring release,$(MAKECMDGOALS)),$(findstring debug,$(MAKECMDGOALS))\
 ,$(findstring install,$(MAKECMDGOALS)),$(findstring createpkg,$(MAKECMDGOALS)),$(findstring preparepkg,$(MAKECMDGOALS))\
@@ -269,6 +270,12 @@ $(DEPENDCHECKFILES) &:: $(RUNDEPS)
 	@echo "Initializing package manager..."
 	sudo pacman-key --init &>/dev/null
 	sudo pacman-key --populate &>/dev/null
+
+else # ifndef NOPREPARE
+
+prepare: ;
+
+endif # ifndef NOPREPARE
 
 #  See second expansion at the bottom
 
@@ -381,6 +388,8 @@ $(OBJDIR) $(BINDIR) $(PKGDIR) $(PKGBINDIR):
 
 # Prepare
 
+ifndef NOPREPARE
+
 .IGNORE: $(DEPENDCHECKFILES)
 
 #	Reinstall. Normal multiple target. Each dependency check file is
@@ -390,6 +399,7 @@ $(DEPENDCHECKFILES) :: $(RUNDEPS) | $$(call removefrom,$$(call getpos,$$@,$(DEPE
 	@echo -e "Missing $@. Reinstalling \e[1m$(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES))\e[0m..."
 	sudo pacman -S --noconfirm $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
 
+endif # ifndef NOPREPARE
 
 # Build
 
