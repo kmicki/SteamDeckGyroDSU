@@ -11,7 +11,7 @@ If you've never set the password on your Deck, use `passwd` instruction and set 
 
 When deck user has a password set, execute command:
 
-    bash <(curl -sL https://github.com/kmicki/SteamDeckGyroDSU/raw/master/pkg/update.sh)
+    bash <(curl -sL https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/update.sh)
     
 Above command will download the binary package and install it. It can be also used to update to the newest version at any time.
 
@@ -27,7 +27,7 @@ To uninstall:
 
 Uninstall command for version 1.12 or lower:
 
-    bash <(curl -sL https://github.com/kmicki/SteamDeckGyroDSU/raw/master/pkg/uninstall.sh)
+    bash <(curl -sL https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/uninstall.sh)
     
 ## Usage
 
