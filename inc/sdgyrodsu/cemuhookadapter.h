@@ -25,8 +25,8 @@ namespace kmicki::sdgyrodsu
 
         bool IsControllerConnected();
 
-        cemuhook::protocol::MotionData GetMotionData(SdHidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
-        static void SetMotionData(SdHidFrame const& frame, cemuhook::protocol::MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
+        cemuhook::protocol::MotionData GetMotionData(SdHidFrame const& frame, float &lastAccelPitch, float &lastAccelRoll, float &lastAccelYaw);
+        static void SetMotionData(SdHidFrame const& frame, cemuhook::protocol::MotionData &data, float &lastAccelPitch, float &lastAccelRoll, float &lastAccelYaw);
 
         private:
         bool ignoreFirst;
@@ -38,9 +38,9 @@ namespace kmicki::sdgyrodsu
         uint32_t lastInc;
         uint64_t lastTimestamp;
         
-        float lastAccelRtL;
-        float lastAccelFtB;
-        float lastAccelTtB;
+        float lastAccelPitch;
+        float lastAccelRoll;
+        float lastAccelYaw;
 
         int toReplicate;
 

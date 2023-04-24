@@ -48,14 +48,14 @@ namespace kmicki::sdgyrodsu
         int16_t RightTrackpadX;
         int16_t RightTrackpadY;
 
-        int16_t AccelAxisRightToLeft; // axis from right side to left side of the SD
-        int16_t AccelAxisTopToBottom; // axis from top side to bottom side of the SD
-        int16_t AccelAxisFrontToBack; // axis from front side to back side of the SD
+        int16_t AccelAxisPitch; // axis from right side to left side of the SD
+        int16_t AccelAxisYaw; // axis from top side to bottom side of the SD
+        int16_t AccelAxisRoll; // axis from front side to back side of the SD
 
         // Gyro + -> movement rotating in unscrewing direction (left) around axis
-        int16_t GyroAxisRightToLeft; // axis from right side to left side of the SD
-        int16_t GyroAxisTopToBottom; // axis from top side to bottom side of the SD
-        int16_t GyroAxisFrontToBack; // axis from front side to back side of the SD
+        int16_t GyroAxisPitch; // axis from right side to left side of the SD
+        int16_t GyroAxisYaw; // axis from top side to bottom side of the SD
+        int16_t GyroAxisRoll; // axis from front side to back side of the SD
 
         int16_t Unknown1;
         int16_t Unknown2;

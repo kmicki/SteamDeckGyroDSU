@@ -21,29 +21,29 @@ namespace kmicki::sdgyrodsu
         static MotionData md;
         auto incSpan = frame.Increment-lastInc; 
 
-        static float lastAccelRtL = 0;
-        static float lastAccelFtB = 0;
-        static float lastAccelTtB = 0;
+        static float lastAccelPitch = 0;
+        static float lastAccelRoll = 0;
+        static float lastAccelYaw = 0;
 
         if(lastInc && incSpan > maxSpan)
             maxSpan = incSpan;
 
         lastInc = frame.Increment;
 
-        CemuhookAdapter::SetMotionData(frame,md,lastAccelRtL,lastAccelFtB,lastAccelTtB);
+        CemuhookAdapter::SetMotionData(frame,md,lastAccelPitch,lastAccelRoll,lastAccelYaw);
 
         int k=0;
         move(++k,0); printw("INC  : %10d         ",frame.Increment);
         move(++k,0); printw("SPAN : %10d         ",incSpan);
         move(++k,0); printw("MAX  : %10d         ",maxSpan);
         ++k;
-        move(++k,0); printw("A_RL : %10d         ",frame.AccelAxisRightToLeft);
-        move(++k,0); printw("A_TB : %10d         ",frame.AccelAxisTopToBottom);
-        move(++k,0); printw("A_FB:  %10d         ",frame.AccelAxisFrontToBack);
+        move(++k,0); printw("A_P  : %10d         ",frame.AccelAxisPitch);
+        move(++k,0); printw("A_Y  : %10d         ",frame.AccelAxisYaw);
+        move(++k,0); printw("A_R  : %10d         ",frame.AccelAxisRoll);
         ++k;
-        move(++k,0); printw("G_RL : %10d         ",frame.GyroAxisRightToLeft);
-        move(++k,0); printw("G_TB : %10d         ",frame.GyroAxisTopToBottom);
-        move(++k,0); printw("G_FB : %10d         ",frame.GyroAxisFrontToBack);
+        move(++k,0); printw("G_P  : %10d         ",frame.GyroAxisPitch);
+        move(++k,0); printw("G_Y  : %10d         ",frame.GyroAxisYaw);
+        move(++k,0); printw("G_R  : %10d         ",frame.GyroAxisRoll);
         ++k;
         move(++k,0); printw("U1   : %10d         ",frame.Unknown1);
         move(++k,0); printw("U2   : %10d         ",frame.Unknown2);

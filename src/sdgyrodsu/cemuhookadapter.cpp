@@ -17,11 +17,11 @@ using namespace kmicki::log;
 namespace kmicki::sdgyrodsu
 {
 
-    MotionData CemuhookAdapter::GetMotionData(SdHidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
+    MotionData CemuhookAdapter::GetMotionData(SdHidFrame const& frame, float &lastAccelPitch, float &lastAccelRoll, float &lastAccelYaw)
     {
         MotionData data;
 
-        SetMotionData(frame,data,lastAccelRtL,lastAccelFtB,lastAccelTtB);
+        SetMotionData(frame,data,lastAccelPitch,lastAccelRoll,lastAccelYaw);
 
         return data;
     }
@@ -60,16 +60,16 @@ namespace kmicki::sdgyrodsu
         return data;
     }
 
-    void CemuhookAdapter::SetMotionData(SdHidFrame const& frame, MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
+    void CemuhookAdapter::SetMotionData(SdHidFrame const& frame, MotionData &data, float &lastAccelPitch, float &lastAccelRoll, float &lastAccelYaw)
     {
         static const float acc1G = (float)ACC_1G;
         static const float gyro1dps = (float)GYRO_1DEGPERSEC;
 
         SetTimestamp(data, frame.Increment);
         
-        data.accX = -SmoothAccel(lastAccelRtL,frame.AccelAxisRightToLeft);
-        data.accY = -SmoothAccel(lastAccelFtB,frame.AccelAxisFrontToBack);
-        data.accZ = SmoothAccel(lastAccelTtB,frame.AccelAxisTopToBottom);
+        data.accX = -SmoothAccel(lastAccelPitch,frame.AccelAxisPitch);
+        data.accY = -SmoothAccel(lastAccelRoll,frame.AccelAxisRoll);
+        data.accZ = SmoothAccel(lastAccelYaw,frame.AccelAxisYaw);
         if(frame.Header & 0xFF == 0xDD)
         {
             data.pitch = 0.0f;
@@ -78,27 +78,27 @@ namespace kmicki::sdgyrodsu
         }
         else 
         {
-            auto gyroRtL = frame.GyroAxisRightToLeft;
-            auto gyroFtB = frame.GyroAxisFrontToBack;
-            auto gyroTtB = frame.GyroAxisTopToBottom;
+            auto gyroPitch = frame.GyroAxisPitch;
+            auto gyroRoll = frame.GyroAxisRoll;
+            auto gyroYaw = frame.GyroAxisYaw;
 
-            if(gyroRtL < GYRO_DEADZONE && gyroRtL > -GYRO_DEADZONE)
-                gyroRtL = 0;
-            if(gyroFtB < GYRO_DEADZONE && gyroFtB > -GYRO_DEADZONE)
-                gyroFtB = 0;
-            if(gyroTtB < GYRO_DEADZONE && gyroTtB > -GYRO_DEADZONE)
-                gyroTtB = 0;
+            if(gyroPitch < GYRO_DEADZONE && gyroPitch > -GYRO_DEADZONE)
+                gyroPitch = 0;
+            if(gyroRoll < GYRO_DEADZONE && gyroRoll > -GYRO_DEADZONE)
+                gyroRoll = 0;
+            if(gyroYaw < GYRO_DEADZONE && gyroYaw > -GYRO_DEADZONE)
+                gyroYaw = 0;
 
-            data.pitch = (float)gyroRtL/gyro1dps;
-            data.yaw = -(float)gyroTtB/gyro1dps;
-            data.roll = (float)gyroFtB/gyro1dps;
+            data.pitch = (float)gyroPitch/gyro1dps;
+            data.yaw = -(float)gyroYaw/gyro1dps;
+            data.roll = (float)gyroRoll/gyro1dps;
         }
     }
 
     CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader, bool persistent)
     : reader(_reader),
       lastInc(0),
-      lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),
+      lastAccelPitch(0.0),lastAccelRoll(0.0),lastAccelYaw(0.0),
       isPersistent(persistent), toReplicate(0)
     {
         Log("CemuhookAdapter: Initialized. Waiting for start of frame grab.",LogLevelDebug);
@@ -155,7 +155,7 @@ namespace kmicki::sdgyrodsu
                         }
                     }
 
-                    SetMotionData(frame,motion,lastAccelRtL,lastAccelFtB,lastAccelTtB);
+                    SetMotionData(frame,motion,lastAccelPitch,lastAccelRoll,lastAccelYaw);
 
                     if(toReplicate > 0)
                     {
