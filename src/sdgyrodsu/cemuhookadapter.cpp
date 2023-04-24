@@ -90,8 +90,8 @@ namespace kmicki::sdgyrodsu
                 gyroTtB = 0;
 
             data.pitch = (float)gyroRtL/gyro1dps;
-            data.yaw = -(float)gyroFtB/gyro1dps;
-            data.roll = (float)gyroTtB/gyro1dps;
+            data.yaw = -(float)gyroTtB/gyro1dps;
+            data.roll = (float)gyroFtB/gyro1dps;
         }
     }
 
