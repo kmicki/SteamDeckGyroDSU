@@ -1,3 +1,5 @@
+#!/bin/sh
+
 echo "Uninstalling the service"
 systemctl --user -q stop sdgyrodsu.service >/dev/null 2>&1
 systemctl --user -q disable sdgyrodsu.service >/dev/null 2>&1
