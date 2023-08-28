@@ -92,7 +92,11 @@ namespace kmicki::cemuhook
         sockInServer = sockaddr_in();
 
         sockInServer.sin_family = AF_INET;
-        sockInServer.sin_port = htons(PORT);
+        if (const char* customPort = std::getenv("SERVER_PORT")) {
+          sockInServer.sin_port = std::atoi(customPort);
+        } else {
+          sockInServer.sin_port = htons(PORT);
+        }
         sockInServer.sin_addr.s_addr = INADDR_ANY;
 
         if(bind(socketFd, (sockaddr*)&sockInServer, sizeof(sockInServer)) < 0)
