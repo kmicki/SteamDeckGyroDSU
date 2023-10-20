@@ -15,7 +15,7 @@ When deck user has a password set, execute command:
     
 Above command will download the binary package and install it. It can be also used to update to the newest version at any time.
 
-When **SteamDeckGyroDSU** is already installed, it can also be updated by running following command (since version 1.13):
+When **SteamDeckGyroDSU** is already installed, it can also be updated by running following command:
 
     $HOME/sdgyrodsu/update.sh
 
@@ -24,10 +24,6 @@ In case of first-time install, system restart is required. The install script wi
 To uninstall:
 
     $HOME/sdgyrodsu/uninstall.sh
-
-Uninstall command for version 1.12 or lower:
-
-    bash <(curl -sL https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/uninstall.sh)
     
 ## Usage
 
