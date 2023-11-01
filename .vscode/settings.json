@@ -69,6 +69,11 @@
         "cstdbool": "cpp",
         "hash_map": "cpp",
         "csignal": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "charconv": "cpp",
+        "optional": "cpp",
+        "format": "cpp",
+        "span": "cpp",
+        "variant": "cpp"
     }
 }

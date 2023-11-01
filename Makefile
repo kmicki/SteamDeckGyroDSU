@@ -62,7 +62,7 @@ ADDRELEASEPARS = -O3
 # 		Additional parameters for debug build
 ADDDEBUGPARS = -g
 # 		Additional libraries parameters
-ADDLIBS = -pthread -lncurses
+ADDLIBS = -pthread -lncurses -lsystemd
 
 #	Install
 
@@ -79,11 +79,11 @@ PREPARESCRIPT = scripts/prepare.sh
 
 # 	Check files - these files existence will be checked to determine if 
 #	the corresponding dependency is properly installed
-DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/) /usr/include/c++/*/)vector /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/ncurses.h
+DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/) /usr/include/c++/*/)vector /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/ncurses.h /usr/include/systemd/sd-device.h
 
 # 	Dependencies - names of packages to install with pacman -S
 #	if the corresponding check file is not found
-DEPENDENCIES := gcc glibc linux-api-headers ncurses
+DEPENDENCIES := gcc glibc linux-api-headers ncurses systemd-libs
 
 # Functions
 
@@ -182,15 +182,15 @@ $(shell echo "Makefile targets: $(MAKECMDGOALS)" $(DUMMYSHELLSILENT))
 
 # Prepare
 
+RUNDEPS := mk_deps_run.tmp
+FINISHDEPS := mk_deps.tmp
+CHECKDEPS := mk_chdeps.tmp
+
 ifndef NOPREPARE
 
 TEMPFILESNEC := $(or $(if $(MAKECMDGOALS),,x),$(findstring release,$(MAKECMDGOALS)),$(findstring debug,$(MAKECMDGOALS))\
 ,$(findstring install,$(MAKECMDGOALS)),$(findstring createpkg,$(MAKECMDGOALS)),$(findstring preparepkg,$(MAKECMDGOALS))\
 ,$(findstring prepare,$(MAKECMDGOALS)))
-
-RUNDEPS := mk_deps_run.tmp
-FINISHDEPS := mk_deps.tmp
-CHECKDEPS := mk_chdeps.tmp
 
 ifneq ($(TEMPFILESNEC),)
 $(shell echo "Creating temporary files." 1>&2)
@@ -321,7 +321,7 @@ $(PKGBINPATH): 		$(PKGBINFILES)
 
 # Clean
 
-clean: 	dbgclean relclean
+clean: 	dbgclean relclean tmpclean
 	rm -f $(MKTMPFILE)
 
 relclean:
@@ -349,6 +349,15 @@ pkgbinclean:
 cleanall: clean pkgclean
 	@echo "Removing object,binary and binary package directories"
 	rm -rf $(PKGBINDIR) $(OBJDIR) $(BINDIR)
+	rm -f $(FINISHDEPS)
+	rm -f $(RUNDEPS)
+	rm -f $(CHECKDEPS)
+
+tmpclean:
+	@echo "Removing temporary files."
+	rm -f $(FINISHDEPS)
+	rm -f $(RUNDEPS)
+	rm -f $(CHECKDEPS)
 
 # Install
 

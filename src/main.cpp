@@ -25,7 +25,7 @@ const int cScanTimeUs = 4000;   // Steam Deck Controls' period between received 
 const uint16_t cVID = 0x28de;   // Steam Deck Controls' USB Vendor-ID
 const uint16_t cPID = 0x1205;   // Steam Deck Controls' USB Product-ID
 
-const std::string cVersion = "1.15";   // Release version
+const std::string cVersion = "1.16";   // Release version
 
 bool stop = false;
 std::mutex stopMutex = std::mutex();

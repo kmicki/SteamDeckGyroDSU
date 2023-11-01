@@ -2,49 +2,68 @@
 #include "shell/shell.h"
 #include <sstream>
 #include <iomanip>
+#include <filesystem>
+#include <systemd/sd-device.h>
     
 using namespace kmicki::shell;
 
 namespace kmicki::hiddev
 {
+    const std::string cHiddevPath = "/dev/usb/";
+    const std::string cHiddevPrefix = std::string("hiddev");
+    const std::string cSubsystem = "usb";
+    const std::string cDevType = "usb_device";
+    const std::string cProductPropertyName = "PRODUCT";
+
+    inline std::string GetHexStringId(uint16_t id)
+    {
+        return std::move(
+            ((
+                std::ostringstream()) << std::setfill('0') 
+                                      << std::setw(4) 
+                                      << std::nouppercase 
+                                      << std::hex 
+                                      << id).str());
+    }
+
     // Find N of the HID device matching provided vendor ID and product ID.
     // N being the number in path: /dev/usb/hiddevN
     int FindHidDevNo(uint16_t vid, uint16_t pid)
     {
-        std::string output;
-        int bus,dev,checkBus,checkDev;
-        int testLen;
+        auto vidStr = GetHexStringId(vid);
+        auto pidStr = GetHexStringId(pid);
 
-        // Get bus number and dev number from vendor ID and product ID
-        std::ostringstream cmd;
-        cmd << "lsusb | grep -i '";
-        cmd << std::setw(4) << std::setfill('0') << std::setbase(16) << vid << ":" ;
-        cmd << std::setw(4) << std::setfill('0') << std::setbase(16) << pid;
-        cmd << "' | sed -e \"s/.*Bus \\([0-9]\\+\\) Device \\([0-9]\\+\\).*/\\1 \\2/g\"";
-        
-        if(ExecuteCommand(cmd.str(),output) || (testLen = output.length()) != 8)
-            return -1;
-
-        std::istringstream str(output);
-        str >> bus >> dev;
-        if (bus == 0 || dev == 0)
-            return -1;
-
-        // loop through info of /dev/usb/hiddev0 to /dev/usb/hiddev10 to find the one matching
-        // bus and dev number.
-        for (int i = 0; i < 10; i++)    
+        // Loop through all /dev/usb/hiddev* files
+        for (const auto & hiddevFile : std::filesystem::directory_iterator(cHiddevPath))
         {
-            std::ostringstream ostr;
-            ostr << "udevadm info --query=all /dev/usb/hiddev" << i << " | grep 'P:' | sed -e \"s/.*usb\\([0-9]\\+\\).*\\.\\([0-9]\\+\\).*/\\1 \\2/g\"";
-            std::string cmd = ostr.str();
-            if(ExecuteCommand(cmd,output) || output.length() > 8 ||  output.length() < 4)
-                continue; // wrong output length - probably device doesn't exist
-            std::istringstream str(output);
-            str >> checkBus >> checkDev;
-            if (bus == checkBus || dev == checkDev)
-                return i; // matching bus and dev
+            // Get hiddev* device
+            sd_device *hidDevice = NULL;
+            if(sd_device_new_from_devname(&hidDevice, hiddevFile.path().c_str()) != 0)
+                continue;
+
+            // Go up to usb_device
+            sd_device *usbDevice = NULL;
+            if(sd_device_get_parent_with_subsystem_devtype(hidDevice,cSubsystem.c_str(),cDevType.c_str(),&usbDevice) != 0)
+                continue;
+
+            // Check vid,pid
+            const char *product = NULL;
+            if(sd_device_get_property_value(usbDevice,cProductPropertyName.c_str(),&product) != 0)
+                continue;
+            if(vidStr == std::string(product).substr(0,4) && pidStr == std::string(product).substr(5,4))
+            {
+                std::string fName = hiddevFile.path().filename();
+                if(fName.length() > cHiddevPrefix.length())
+                {
+                    std::string strNum = fName.substr(cHiddevPrefix.length());
+                    std::stringstream ss(strNum);
+                    int i;
+                    if(!(ss >> i).fail() && (ss >> std::ws).eof())
+                        return i; // found matching hiddev file
+                }
+            }
         }
+
         return -1;
     }
-
 }
