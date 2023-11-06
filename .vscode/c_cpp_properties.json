@@ -14,8 +14,7 @@
                 "-std=c++2a",
                 "-pthread",
                 "-lncurses"
-            ],
-            "configurationProvider": "ms-vscode.makefile-tools"
+            ]
         }
     ],
     "version": 4

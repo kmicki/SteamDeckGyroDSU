@@ -12,8 +12,6 @@ namespace kmicki::hiddev
     const int HidDevReader::cByteposInput = 4;      // Position in the raw hiddev record (of INPUT_RECORD_LEN length) where 
                                                     // HID data byte is.
 
-
-
     void HandleMissedTicks(std::string name, std::string tickName, bool received, int & ticks, int period, int & nonMissed)
     {
         if(GetLogLevel() < LogLevelDebug)
@@ -53,6 +51,30 @@ namespace kmicki::hiddev
         pipeline.emplace_back(operation);
     }
 
+    void HidDevReader::ConstructPipeline(ReadData *_readData, int const& _frameLen, int const& scanTimeUs, bool useProcessData)
+    {
+        auto* readDataOp = _readData;
+        ProcessData* processData;
+        ServeFrame* serveFrame;
+        if(useProcessData)
+        {
+            processData = new ProcessData(_frameLen, *readDataOp, scanTimeUs);
+            serveFrame = new ServeFrame(processData->Frame);
+        }
+        else
+            serveFrame = new ServeFrame(readDataOp->Data);
+
+        AddOperation(readDataOp);
+        if(useProcessData)
+            AddOperation(processData);
+        AddOperation(serveFrame);
+
+        serve = serveFrame;
+        readData = readDataOp;
+
+        Log("HidDevReader: Pipeline initialized. Waiting for start...",LogLevelDebug);
+    }
+
     HidDevReader::HidDevReader(int const& hidNo, int const& _frameLen, int const& scanTimeUs) 
     : frameLen(_frameLen), startStopMutex()
     {
@@ -62,19 +84,18 @@ namespace kmicki::hiddev
         inputFilePathFormatter << "/dev/usb/hiddev" << hidNo;
         inputFilePath = inputFilePathFormatter.str();
 
-        auto* readDataOp = new ReadData(inputFilePath, _frameLen, scanTimeUs);
-        auto* processData = new ProcessData(_frameLen, *readDataOp, scanTimeUs);
-        auto* serveFrame = new ServeFrame(processData->Frame);
-
-        AddOperation(readDataOp);
-        AddOperation(processData);
-        AddOperation(serveFrame);
-
-        serve = serveFrame;
-        readData = readDataOp;
-
-        Log("HidDevReader: Pipeline initialized. Waiting for start...",LogLevelDebug);
+        auto* readDataOp = new ReadDataFile(inputFilePath, _frameLen, scanTimeUs);
+        ConstructPipeline(readDataOp, _frameLen, scanTimeUs);
     }
+
+
+    HidDevReader::HidDevReader(uint16_t const& vId, uint16_t const& pId, int const& interfaceNumber ,int const& _frameLen, int const& scanTimeUs) 
+    : frameLen(_frameLen), startStopMutex()
+    {
+        auto* readDataOp = new ReadDataApi(vId, pId, interfaceNumber, _frameLen, scanTimeUs);
+        ConstructPipeline(readDataOp, _frameLen, scanTimeUs,false);
+    }
+
 
     HidDevReader::~HidDevReader()
     {

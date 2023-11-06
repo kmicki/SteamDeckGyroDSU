@@ -41,7 +41,7 @@ namespace kmicki::hiddev
     int HidDevFile::Read(std::vector<char> & data)
     {
         if(file < 0)
-            return false;
+            return 0;
         
         auto retval = ppoll(fileDescriptors,1,&timeout,nullptr);
         
