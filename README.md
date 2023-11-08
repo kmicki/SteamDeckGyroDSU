@@ -1,15 +1,11 @@
 # SteamDeckGyroDSU
-DSU (cemuhook protocol) server for motion data for Steam Deck.
+**DSU** (*cemuhook protocol*) server for motion data for **Steam Deck**.
 
 ## Install/Update
 
-In Steam Deck's desktop mode, open Konsole.
+In **Steam Deck**'s desktop mode, open *Konsole*.
 
-First-time install will require superuser access to set USB permissions. Therefore it will ask to input deck user's password.
-
-If you've never set the password on your Deck, use `passwd` instruction and set it. Be aware: Konsole will not show the password you're typing in as a security measure.
-
-When deck user has a password set, execute command:
+Execute command:
 
     bash <(curl -sL https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/update.sh)
     
@@ -24,16 +20,33 @@ In case of first-time install, system restart is required. The install script wi
 To uninstall:
 
     $HOME/sdgyrodsu/uninstall.sh
+
+### Remarks about update from version 1.*
+
+Versions **1.\*** of **SteamDeckGyroDSU** required superuser access to be installed.
+
+Versions **2.0** and above don't need it.
+
+Still, after update from **1.\*** to **2.0** or higher, the changes done with superuser access will be left in the system.
+Uninstall script will not remove them anymore since version **2.0**.
+
+Reverting those changes is not necessary but can be done by executing following command (requires superuser access):
+
+    $HOME/sdgyrodsu/v1cleanup.sh
+
+after version **2.0** or above is installed.
     
 ## Usage
 
-Server is running as a service. It provides motion data for cemuhook at Deck's IP address and UDP port 26760.
+Server is running as a service. It provides motion data for cemuhook at Deck's IP address and UDP port *26760*.
+
+Optionally, another UDP server port may be specified in an environment variable **SDGYRO_SERVER_PORT**.
 
 **Remark:** The server provides only motion data. Remaining controls (buttons/axes) are not provided.
 
-### Client Configuration
+### Client (emulator) Configuration
 
-See [Client Configuration](https://github.com/kmicki/SteamDeckGyroDSU/wiki/Client-Configuration) wiki page.
+See [Client Configuration](https://github.com/kmicki/SteamDeckGyroDSU/wiki/Client-Configuration) wiki page for instructions on how to configure client applications (emulators).
 
 ## Reporting problems
 
