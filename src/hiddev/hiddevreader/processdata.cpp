@@ -5,10 +5,10 @@ using namespace kmicki::log;
 
 namespace kmicki::hiddev
 {
-    static const int cScanTimeToTimeout = 3;
+    static const int cApiScanTimeToTimeout = 3;
 
     HidDevReader::ProcessData::ProcessData(int const& _frameLen, ReadData & _data, int const& scanTimeUs)
-    : readData(_data), data(_data.Data), ReadStuck(), timeout(cScanTimeToTimeout*scanTimeUs),
+    : readData(_data), data(_data.Data), ReadStuck(), timeout(cApiScanTimeToTimeout*scanTimeUs),
       Frame(new frame_t(_frameLen),new frame_t(_frameLen),new frame_t(_frameLen))
     { }
 

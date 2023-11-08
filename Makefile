@@ -62,7 +62,7 @@ ADDRELEASEPARS = -O3
 # 		Additional parameters for debug build
 ADDDEBUGPARS = -g
 # 		Additional libraries parameters
-ADDLIBS = -pthread -lncurses -lsystemd
+ADDLIBS = -pthread -lncurses -lsystemd -lhidapi-hidraw
 
 #	Install
 
@@ -79,11 +79,11 @@ PREPARESCRIPT = scripts/prepare.sh
 
 # 	Check files - these files existence will be checked to determine if 
 #	the corresponding dependency is properly installed
-DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/) /usr/include/c++/*/)vector /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/ncurses.h /usr/include/systemd/sd-device.h
+DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/) /usr/include/c++/*/)vector /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/ncurses.h /usr/include/systemd/sd-device.h /usr/include/hidapi/hidapi.h
 
 # 	Dependencies - names of packages to install with pacman -S
 #	if the corresponding check file is not found
-DEPENDENCIES := gcc glibc linux-api-headers ncurses systemd-libs
+DEPENDENCIES := gcc glibc linux-api-headers ncurses systemd-libs hidapi
 
 # Functions
 

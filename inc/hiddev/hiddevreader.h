@@ -29,6 +29,7 @@ namespace kmicki::hiddev
 
         // Constructor.
         // Starts pipeline.
+        // Uses hiddev file to obtain data from device.
         // hidNo: ID of HID device (X in /dev/usb/hiddevX)
         // frameLen: Size of single HID data frame
         // scanTime: Period between frames in ms. 
@@ -38,6 +39,21 @@ namespace kmicki::hiddev
         //           (a block of consecutive frames and then skip)
         // maxScanTime: maximum scan time
         HidDevReader(int const& hidNo, int const& _frameLen, int const& scanTimeUs);
+
+        // Constructor.
+        // Starts pipeline.
+        // Uses hidapi (hidraw) to obtain data from device.
+        // vId: vendor ID
+        // pId: product ID
+        // interfaceNumber: interface number of the device
+        // frameLen: Size of single HID data frame
+        // scanTime: Period between frames in ms. 
+        //           If it will be around or lower than actual period of incoming frames,
+        //           The reading task will block often and will have to reinitialize reading.
+        //           If it will be much higher then the generated frames will be out of sync
+        //           (a block of consecutive frames and then skip)
+        // maxScanTime: maximum scan time
+        HidDevReader(uint16_t const& vId, uint16_t const& pId, const int& interfaceNumber, int const& _frameLen, int const& scanTimeUs);
 
         // Destructor. 
         // Stops pipeline.
@@ -73,26 +89,54 @@ namespace kmicki::hiddev
         {
             public:
             ReadData() = delete;
-            ReadData(std::string const& _inputFilePath, int const& _frameLen, int const& _scanTimeUs);
+            ReadData(int const& _frameLen);
             ~ReadData();
 
-            void ReconnectInput();
-            void DisconnectInput();
-
-            void SetStartMarker(std::vector<char> const& marker); 
+            void SetStartMarker(std::vector<char> const& marker);
 
             PipeOut<std::vector<char>> Data;
             SignalOut Unsynced;
 
             protected:
 
-            void Execute() override;
             void FlushPipes() override;
+            std::vector<char> startMarker;
+        };
+
+        class ReadDataFile : public ReadData
+        {
+            public:
+            ReadDataFile() = delete;
+            ReadDataFile(std::string const& _inputFilePath, int const& _frameLen, int const& _scanTimeUs);
+
+            void ReconnectInput();
+            void DisconnectInput();
+
+            protected:
+
+            void Execute() override;
 
             private:
             bool CheckData(std::unique_ptr<std::vector<char>> const& data, ssize_t readCnt);
             HidDevFile inputFile;
-            std::vector<char> startMarker;
+        };
+        
+        class ReadDataApi : public ReadData
+        {
+            public:
+            ReadDataApi() = delete;
+            ReadDataApi(uint16_t const& vId, uint16_t const& pId, const int& _interfaceNumber, int const& _frameLen, int const& _scanTimeUs);
+            ~ReadDataApi();
+
+            protected:
+
+            void Execute() override;
+
+            private:
+            uint16_t vId;
+            uint16_t pId;
+            int interfaceNumber;
+            int timeout;
         };
 
         class ProcessData : public Thread
@@ -158,6 +202,8 @@ namespace kmicki::hiddev
         std::mutex startStopMutex;
 
         void AddOperation(pipeline::Thread * operation);
+
+        void ConstructPipeline(ReadData* _readData, int const& _frameLen, int const& scanTimeUs, bool useProcessData = true);
 
         
     };

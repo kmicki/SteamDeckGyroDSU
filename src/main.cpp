@@ -19,13 +19,16 @@ using namespace kmicki::cemuhook;
 
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 const bool cRunPresenter = false;
+const bool cUseHiddevFile = false;
+const bool cTestRun = false;
 
 const int cFrameLen = 64;       // Steam Deck Controls' custom HID report length in bytes
 const int cScanTimeUs = 4000;   // Steam Deck Controls' period between received report data in microseconds
 const uint16_t cVID = 0x28de;   // Steam Deck Controls' USB Vendor-ID
 const uint16_t cPID = 0x1205;   // Steam Deck Controls' USB Product-ID
+const int cInterfaceNumber = 2; // Steam Deck Controls' USB Interface Number
 
-const std::string cVersion = "1.16";   // Release version
+const std::string cVersion = "2.0";   // Release version
 
 bool stop = false;
 std::mutex stopMutex = std::mutex();
@@ -67,6 +70,7 @@ void SignalHandler(int signal)
 
 void PresenterRun(HidDevReader * reader)
 {
+    reader->Start();
     auto & frameServe = reader->GetServe();
     auto const& data = frameServe.GetPointer();
     int temp;
@@ -94,16 +98,27 @@ int main()
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
 
-    int hidno = FindHidDevNo(cVID,cPID);
-    if(hidno < 0) 
+    std::unique_ptr<HidDevReader> readerPtr;
+
+    if(cUseHiddevFile)
     {
-        Log("Steam Deck Controls' HID device not found.");
-        return 0;
+        int hidno = FindHidDevNo(cVID,cPID);
+        if(hidno < 0) 
+        {
+            Log("Steam Deck Controls' HID device not found.");
+            return 0;
+        }
+
+        { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
+        
+        readerPtr.reset(new HidDevReader(hidno,cFrameLen,cScanTimeUs));
+    }
+    else
+    {
+        readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
     }
 
-    { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
-    
-    HidDevReader reader(hidno,cFrameLen,cScanTimeUs);
+    HidDevReader &reader = *readerPtr;
 
     reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
 
@@ -116,6 +131,9 @@ int main()
     std::unique_ptr<std::thread> presenter;
     if(cRunPresenter)
         presenter.reset(new std::thread(PresenterRun,&reader));
+
+    if(cTestRun && !cRunPresenter)
+        reader.Start();
 
     {
         std::unique_lock lock(stopMutex);
