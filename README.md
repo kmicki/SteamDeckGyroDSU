@@ -15,8 +15,6 @@ When **SteamDeckGyroDSU** is already installed, it can also be updated by runnin
 
     $HOME/sdgyrodsu/update.sh
 
-In case of first-time install, system restart is required. The install script will inform about that.
-
 To uninstall:
 
     $HOME/sdgyrodsu/uninstall.sh
