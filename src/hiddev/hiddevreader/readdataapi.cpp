@@ -20,7 +20,7 @@ namespace kmicki::hiddev
         
         Log("HidDevReader::ReadDataApi: Opening HID device.",LogLevelDebug);
         if(!dev.Open())
-            throw std::runtime_error("HidDevReader::ReadDataFile: Problem opening HID device.");
+            throw std::runtime_error("HidDevReader::ReadDataApi: Problem opening HID device.");
 
         auto const& data = Data.GetPointerToFill();
 
