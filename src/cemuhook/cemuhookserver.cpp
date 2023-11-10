@@ -291,7 +291,7 @@ namespace kmicki::cemuhook
                             }
                             else
                             {
-                                { LogF(LogLevelTrace) << "Server: Request for data from existing client. " << addressText << "."; }
+                                // { LogF(LogLevelTrace) << "Server: Request for data from existing client. " << addressText << "."; }
                                 sharedLock.unlock();
                                 {
                                     std::lock_guard lock(clientsMutex);

@@ -38,14 +38,21 @@ namespace kmicki::hiddev
 
             if(noGyro && noGyro->TrySignal())
             {
+                Log("HidDevReader::ReadDataApi: Try reenabling gyro.",LogLevelTrace);
                 if(dev.EnableGyro())
-                    Log("HidDevReader::ReadDataApi: Gyro reenabled.");
+                    Log("HidDevReader::ReadDataApi: Gyro reenabled.",LogLevelDebug);
                 else
                     Log("HidDevReader::ReadDataApi: Gyro reenaling failed.");
                 continue;
             }
 
             auto readCnt = dev.Read(*data);
+
+            if(readCnt < data->size())
+            {
+                { LogF(LogLevelTrace) << "HidDevReader::ReadDataApi: Not enough bytes read: " << readCnt << "."; }
+                continue;
+            }
 
             if(readCnt == 0)
             {

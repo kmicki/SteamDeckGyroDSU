@@ -117,6 +117,7 @@ namespace kmicki::sdgyrodsu
     {
         static const int64_t cMaxDiffReplicate = 100;
         static const int cNoGyroCooldownFrames = 250;
+        static const int cMaxRepeatedLoop = 1000;
 
         if(noGyroCooldown > 0) --noGyroCooldown;
 
@@ -127,6 +128,8 @@ namespace kmicki::sdgyrodsu
             auto lock = frameServe->GetConsumeLock();
             ignoreFirst = false;
         }
+
+        int repeatedLoop = cMaxRepeatedLoop;
 
         while(true)
         {
@@ -150,7 +153,18 @@ namespace kmicki::sdgyrodsu
 
                 if(lastInc != 0 && diff < 1 && diff > -100)
                 {
-                    Log("CemuhookAdapter: Frame was repeated. Ignoring...",LogLevelDebug);
+                    if(repeatedLoop == cMaxRepeatedLoop)
+                    {
+                        Log("CemuhookAdapter: Frame was repeated. Ignoring...",LogLevelDebug);
+                        { LogF(LogLevelTrace) << std::setw(8) << std::setfill('0') << std::setbase(16)
+                                        << "Current increment: 0x" << frame.Increment << ". Last: 0x" << lastInc << "."; }
+                    }
+                    if(repeatedLoop <= 0)
+                    {
+                        Log("CemuhookAdapter: Frame is repeated continously...");
+                        return toReplicate;
+                    }
+                    --repeatedLoop;
                 }
                 else
                 {

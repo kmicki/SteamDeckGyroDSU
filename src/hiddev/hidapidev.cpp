@@ -74,7 +74,7 @@ namespace kmicki::hiddev
             return 0;
 
         int readCnt = 0;
-        
+
         do {
             auto readCntLoc = hid_read_timeout(dev,(unsigned char*)(data.data()+readCnt),data.size()-readCnt,timeout);
             if(readCntLoc < 0)

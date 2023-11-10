@@ -28,7 +28,7 @@ const uint16_t cVID = 0x28de;   // Steam Deck Controls' USB Vendor-ID
 const uint16_t cPID = 0x1205;   // Steam Deck Controls' USB Product-ID
 const int cInterfaceNumber = 2; // Steam Deck Controls' USB Interface Number
 
-const std::string cVersion = "2.0";   // Release version
+const std::string cVersion = "2.0-ENABLE-GYRO";   // Release version
 
 bool stop = false;
 std::mutex stopMutex = std::mutex();
