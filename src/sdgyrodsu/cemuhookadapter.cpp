@@ -116,7 +116,7 @@ namespace kmicki::sdgyrodsu
     int const& CemuhookAdapter::SetMotionDataNewFrame(MotionData &motion)
     {
         static const int64_t cMaxDiffReplicate = 100;
-        static const int cNoGyroCooldownFrames = 250;
+        static const int cNoGyroCooldownFrames = 1000;
         static const int cMaxRepeatedLoop = 1000;
 
         if(noGyroCooldown > 0) --noGyroCooldown;
