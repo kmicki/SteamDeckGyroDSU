@@ -76,7 +76,7 @@ namespace kmicki::hiddev
     }
 
     HidDevReader::HidDevReader(int const& hidNo, int const& _frameLen, int const& scanTimeUs) 
-    : frameLen(_frameLen), startStopMutex()
+    : frameLen(_frameLen), startStopMutex(), readDataApi(nullptr)
     {
         if(hidNo < 0) throw std::invalid_argument("hidNo");
 
@@ -92,8 +92,9 @@ namespace kmicki::hiddev
     HidDevReader::HidDevReader(uint16_t const& vId, uint16_t const& pId, int const& interfaceNumber ,int const& _frameLen, int const& scanTimeUs) 
     : frameLen(_frameLen), startStopMutex()
     {
-        auto* readDataOp = new ReadDataApi(vId, pId, interfaceNumber, _frameLen, scanTimeUs);
-        ConstructPipeline(readDataOp, _frameLen, scanTimeUs,false);
+        readDataApi = new ReadDataApi(vId, pId, interfaceNumber, _frameLen, scanTimeUs);
+
+        ConstructPipeline(readDataApi, _frameLen, scanTimeUs,false);
     }
 
 
@@ -162,5 +163,11 @@ namespace kmicki::hiddev
                 return true;
 
         return false;
+    }
+
+    void HidDevReader::SetNoGyro(SignalOut &_noGyro)
+    {
+        if(readDataApi)
+            readDataApi->SetNoGyro(_noGyro);
     }
 }

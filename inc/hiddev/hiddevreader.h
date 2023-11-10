@@ -81,6 +81,8 @@ namespace kmicki::hiddev
         // Is grabbing frames being stopped right now?
         bool IsStopping();
 
+        void SetNoGyro(SignalOut& _noGyro);
+
         private:
 
         // Pipeline threads
@@ -128,6 +130,8 @@ namespace kmicki::hiddev
             ReadDataApi(uint16_t const& vId, uint16_t const& pId, const int& _interfaceNumber, int const& _frameLen, int const& _scanTimeUs);
             ~ReadDataApi();
 
+            void SetNoGyro(SignalOut& _noGyro);
+
             protected:
 
             void Execute() override;
@@ -137,6 +141,8 @@ namespace kmicki::hiddev
             uint16_t pId;
             int interfaceNumber;
             int timeout;
+
+            SignalOut *noGyro;
         };
 
         class ProcessData : public Thread
@@ -197,6 +203,7 @@ namespace kmicki::hiddev
         std::vector<std::unique_ptr<Thread>> pipeline;
         ServeFrame * serve;
         ReadData* readData;
+        ReadDataApi* readDataApi;
 
         // Mutex
         std::mutex startStopMutex;

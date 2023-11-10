@@ -123,6 +123,7 @@ int main()
     reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
 
     CemuhookAdapter adapter(reader);
+    reader.SetNoGyro(adapter.NoGyro);
     Server server(adapter);
 
     uint32_t lastInc = 0;
