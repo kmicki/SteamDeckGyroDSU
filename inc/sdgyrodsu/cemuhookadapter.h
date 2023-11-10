@@ -5,6 +5,7 @@
 #include "cemuhook/cemuhookprotocol.h"
 #include "hiddev/hiddevreader.h"
 #include "pipeline/serve.h"
+#include "pipeline/signalout.h"
 
 namespace kmicki::sdgyrodsu
 {
@@ -28,6 +29,8 @@ namespace kmicki::sdgyrodsu
         cemuhook::protocol::MotionData GetMotionData(SdHidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
         static void SetMotionData(SdHidFrame const& frame, cemuhook::protocol::MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
 
+        SignalOut NoGyro;
+
         private:
         bool ignoreFirst;
         bool isPersistent;
@@ -43,6 +46,7 @@ namespace kmicki::sdgyrodsu
         float lastAccelTtB;
 
         int toReplicate;
+        int noGyroCooldown;
 
         pipeline::Serve<hiddev::HidDevReader::frame_t> * frameServe;
     };

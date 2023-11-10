@@ -99,7 +99,7 @@ namespace kmicki::sdgyrodsu
     : reader(_reader),
       lastInc(0),
       lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),
-      isPersistent(persistent), toReplicate(0)
+      isPersistent(persistent), toReplicate(0), noGyroCooldown(0)
     {
         Log("CemuhookAdapter: Initialized. Waiting for start of frame grab.",LogLevelDebug);
     }
@@ -116,6 +116,10 @@ namespace kmicki::sdgyrodsu
     int const& CemuhookAdapter::SetMotionDataNewFrame(MotionData &motion)
     {
         static const int64_t cMaxDiffReplicate = 100;
+        static const int cNoGyroCooldownFrames = 1000;
+        static const int cMaxRepeatedLoop = 1000;
+
+        if(noGyroCooldown > 0) --noGyroCooldown;
 
         auto const& dataFrame = frameServe->GetPointer();
 
@@ -125,6 +129,8 @@ namespace kmicki::sdgyrodsu
             ignoreFirst = false;
         }
 
+        int repeatedLoop = cMaxRepeatedLoop;
+
         while(true)
         {
             if(toReplicate == 0)
@@ -133,11 +139,32 @@ namespace kmicki::sdgyrodsu
                 auto lock = frameServe->GetConsumeLock();
                 //Log("CONSUME LOCK ACQUIRED.");
                 auto const& frame = GetSdFrame(*dataFrame);
+
+                if( noGyroCooldown <= 0
+                    &&  frame.AccelAxisFrontToBack == 0 && frame.AccelAxisRightToLeft == 0 
+                    &&  frame.AccelAxisTopToBottom == 0 && frame.GyroAxisFrontToBack == 0 
+                    &&  frame.GyroAxisRightToLeft == 0 && frame.GyroAxisTopToBottom == 0)
+                {
+                    NoGyro.SendSignal();
+                    noGyroCooldown = cNoGyroCooldownFrames;
+                }
+
                 int64_t diff = (int64_t)frame.Increment - (int64_t)lastInc;
 
                 if(lastInc != 0 && diff < 1 && diff > -100)
                 {
-                    Log("CemuhookAdapter: Frame was repeated. Ignoring...",LogLevelDebug);
+                    if(repeatedLoop == cMaxRepeatedLoop)
+                    {
+                        Log("CemuhookAdapter: Frame was repeated. Ignoring...",LogLevelDebug);
+                        { LogF(LogLevelTrace) << std::setw(8) << std::setfill('0') << std::setbase(16)
+                                        << "Current increment: 0x" << frame.Increment << ". Last: 0x" << lastInc << "."; }
+                    }
+                    if(repeatedLoop <= 0)
+                    {
+                        Log("CemuhookAdapter: Frame is repeated continously...");
+                        return toReplicate;
+                    }
+                    --repeatedLoop;
                 }
                 else
                 {

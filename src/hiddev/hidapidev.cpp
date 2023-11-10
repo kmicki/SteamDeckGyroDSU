@@ -74,7 +74,7 @@ namespace kmicki::hiddev
             return 0;
 
         int readCnt = 0;
-        
+
         do {
             auto readCntLoc = hid_read_timeout(dev,(unsigned char*)(data.data()+readCnt),data.size()-readCnt,timeout);
             if(readCntLoc < 0)
@@ -86,5 +86,36 @@ namespace kmicki::hiddev
         while(readCnt < data.size());
 
         return readCnt;
+    }
+
+    bool HidApiDev::Write(std::vector<char> & data)
+    {
+        if(dev == nullptr)
+            return false;
+
+        auto writeCnt = hid_write(dev,(unsigned char*)(data.data()),data.size());
+
+        return writeCnt == data.size();
+    }
+
+    bool HidApiDev::Write(std::vector<unsigned char> & data)
+    {
+        if(dev == nullptr)
+            return false;
+
+        auto writeCnt = hid_write(dev,data.data(),data.size());
+
+        return writeCnt == data.size();
+    }
+
+    bool HidApiDev::EnableGyro()
+    {                              
+        std::vector<unsigned char> cmd = {   0x00 // TUTAJ
+                                    , 0x87, 0x0f, 0x30, 0x18, 0x00, 0x07, 0x07, 0x00, 0x08, 0x07, 0x00, 0x31, 0x02, 0x00, 0x18, 0x00
+                                    , 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                                    , 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                                    , 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+        return Write(cmd);
     }
 }

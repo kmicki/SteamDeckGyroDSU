@@ -11,8 +11,13 @@ namespace kmicki::hiddev
 
     // Definition - ReadDataApi
     HidDevReader::ReadDataApi::ReadDataApi(uint16_t const& _vId, uint16_t const& _pId, const int& _interfaceNumber, int const& _frameLen, int const& _scanTimeUs)
-    : vId(_vId), pId(_pId), ReadData(_frameLen), timeout(cApiScanTimeToTimeout*_scanTimeUs/1000),interfaceNumber(_interfaceNumber)
+    : vId(_vId), pId(_pId), ReadData(_frameLen), timeout(cApiScanTimeToTimeout*_scanTimeUs/1000),interfaceNumber(_interfaceNumber),noGyro(nullptr)
     { }
+
+    void HidDevReader::ReadDataApi::SetNoGyro(SignalOut &_noGyro)
+    {
+        noGyro = &_noGyro;
+    }
  
     void HidDevReader::ReadDataApi::Execute()
     {
@@ -31,7 +36,23 @@ namespace kmicki::hiddev
             if(!ShouldContinue())
                 break;
 
+            if(noGyro && noGyro->TrySignal())
+            {
+                Log("HidDevReader::ReadDataApi: Try reenabling gyro.",LogLevelTrace);
+                if(dev.EnableGyro())
+                    Log("HidDevReader::ReadDataApi: Gyro reenabled.",LogLevelDebug);
+                else
+                    Log("HidDevReader::ReadDataApi: Gyro reenaling failed.");
+                continue;
+            }
+
             auto readCnt = dev.Read(*data);
+
+            if(readCnt < data->size())
+            {
+                { LogF(LogLevelTrace) << "HidDevReader::ReadDataApi: Not enough bytes read: " << readCnt << "."; }
+                continue;
+            }
 
             if(readCnt == 0)
             {

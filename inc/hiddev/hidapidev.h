@@ -18,6 +18,9 @@ namespace kmicki::hiddev
         int Read(std::vector<char> & data);
         bool Close();
         bool IsOpen();
+        bool EnableGyro();
+        bool Write(std::vector<char> & data);
+        bool Write(std::vector<unsigned char> & data);
 
         private:
         uint16_t vId;
