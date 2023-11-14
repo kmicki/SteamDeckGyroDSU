@@ -8,20 +8,20 @@ namespace kmicki::hiddev
     // Definition - ServeFrame
 
     HidDevReader::ServeFrame::ServeFrame(PipeOut<frame_t> & _frame) 
-    : frame(_frame), frames(), framesMutex(), framesCv()
+    : frame(_frame), frames(), framesMutex(), framesCv(), stopSrc()
     { }
 
     Serve<HidDevReader::frame_t> & HidDevReader::ServeFrame::GetServe()
     {
+        std::unique_ptr<Serve<HidDevReader::frame_t>> *ptr;
         {
-            std::unique_lock lock(framesMutex);
-            auto& ptr = frames.emplace_back();
-            ptr.reset(new Serve<frame_t>(frame.GetPointer()));
-            lock.unlock();
-            framesCv.notify_all();
-            Log("HidDevReader::ServeFrame: New consumer of frames",LogLevelDebug);
-            return *ptr;
+            std::lock_guard lock(framesMutex);
+            ptr = &frames.emplace_back();
+            ptr->reset(new Serve<frame_t>(frame.GetPointer()));
         }
+        framesCv.notify_all();
+        Log("HidDevReader::ServeFrame: New consumer of frames",LogLevelDebug);
+        return **ptr;
     }
 
     HidDevReader::ServeFrame::~ServeFrame()
@@ -36,8 +36,10 @@ namespace kmicki::hiddev
             if(&(*(*x)) == &serve)
             {
                 shLock.unlock();
-                std::lock_guard lock(framesMutex);
-                frames.erase(x);
+                {
+                    std::lock_guard lock(framesMutex);
+                    frames.erase(x);
+                }
                 Log("HidDevReader::ServeFrame: Stop serving frames to consumer.",LogLevelDebug);
                 return;
             }
@@ -87,7 +89,7 @@ namespace kmicki::hiddev
             if(!ShouldContinue())
                 break;
             {
-                std::lock_guard lock(framesMutex);
+                std::shared_lock lock(framesMutex);
                 auto locks = GetServeLocks();
                 HandleMissedFrames(serveCnt, missedTicks, nonMissedTicks, serveNames);
             
@@ -102,12 +104,13 @@ namespace kmicki::hiddev
     {
         frame.SendData();
         framesCv.notify_all();
+        stopSrc.request_stop();
     }
 
     void HidDevReader::ServeFrame::WaitForServes()
     {
         std::unique_lock lock(framesMutex);
-        framesCv.wait(lock,[&] { return frames.size() > 0 || !ShouldContinue(); });
+        framesCv.wait(lock,stopSrc.get_token(),[&] { return frames.size() > 0 || !ShouldContinue(); });
     }
 
     std::vector<Serve<HidDevReader::frame_t>::ServeLock> HidDevReader::ServeFrame::GetServeLocks() 
