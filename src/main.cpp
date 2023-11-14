@@ -13,6 +13,7 @@
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
 using namespace kmicki::log;
+using namespace kmicki::log::logbase;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
 
@@ -66,20 +67,66 @@ void SignalHandler(int signal)
     stopCV.notify_all();
 }
 
-void PresenterRun(HidDevReader * reader)
+const char testRunFlag = 't';
+const char helpFlag = 'h';
+
+const std::unordered_map<char,std::string> flagDef =
 {
-    reader->Start();
-    auto & frameServe = reader->GetServe();
-    auto const& data = frameServe.GetPointer();
-    int temp;
-    void* tempPtr = reinterpret_cast<void*>(&temp);
-    Presenter::Initialize();
-    while(true)
+    {testRunFlag,"--testrun"},
+    {helpFlag,"--help"}
+};
+
+const std::unordered_map<char,std::string> flagDesc =
+{
+    {testRunFlag,"\tRead from controller without client connected."},
+    {helpFlag,"\tThis message."}
+};
+
+void HelpMessage()
+{
+    Log("Usage: " + cExecutableName + " [parameters]");
+    Log(" ");
+    Log("Parameters:");
+    for(const auto& [key,val] : flagDef)
+        { LogF() << '-' << key << "," << val << flagDesc.at(key); }
+};
+
+void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std::function<void()>> &flagActions)
+{
+    if(argc <= 1)
+        return;
+
+    for(int i = 1;i < argc;++i)
     {
-        auto lock = frameServe.GetConsumeLock();
-        Presenter::Present(GetSdFrame(*data));
+        std::string arg(argv[i]);
+
+        if(arg.length() < 2 || arg[0] != '-')
+            throw std::runtime_error("Unknown parameter: " + arg);
+
+        std::string flagStr = "";
+
+        if(arg[0] == '-' && arg[1] != '-')
+            flagStr = arg.substr(1);
+
+        std::size_t fpos;
+        bool anyFlag = false;
+
+        for(const auto& [key, val] : flagDef)
+        {
+            if(flagStr.find(key) != std::string::npos || arg == val)
+            {
+                (flagActions.at(key))();
+                anyFlag = true;
+                while((fpos = flagStr.find(key)) != std::string::npos)
+                    flagStr.erase(fpos,1);
+            }
+        }
+
+        if(flagStr.length() > 0)
+            throw std::runtime_error("Unknown flags: -" + flagStr);
+        if(!anyFlag)
+            throw std::runtime_error("Unknown parameter: " + arg);
     }
-    Presenter::Finish();
 }
 
 int main()

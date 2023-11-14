@@ -5,6 +5,10 @@ using namespace kmicki::log;
 
 namespace kmicki::hiddev
 {
+    namespace sf {
+        static const std::string cLogPrefix = "HidDevReader::ServeFrame: ";
+        #include "log/locallog.h"
+    }
     // Definition - ServeFrame
 
     HidDevReader::ServeFrame::ServeFrame(PipeOut<frame_t> & _frame) 
@@ -19,7 +23,7 @@ namespace kmicki::hiddev
             ptr.reset(new Serve<frame_t>(frame.GetPointer()));
             lock.unlock();
             framesCv.notify_all();
-            Log("HidDevReader::ServeFrame: New consumer of frames",LogLevelDebug);
+            sf::Log("New consumer of frames",LogLevelDebug);
             return *ptr;
         }
     }
@@ -38,7 +42,7 @@ namespace kmicki::hiddev
                 shLock.unlock();
                 std::lock_guard lock(framesMutex);
                 frames.erase(x);
-                Log("HidDevReader::ServeFrame: Stop serving frames to consumer.",LogLevelDebug);
+                sf::Log("Stop serving frames to consumer.",LogLevelDebug);
                 return;
             }
     }
@@ -61,7 +65,7 @@ namespace kmicki::hiddev
             for(int i = serveCnt; i < newSize; ++i)
             {
                 std::stringstream name;
-                name << "HidDevReader::ServeFrame::Serve[" << i << "]";
+                name << "Serve[" << i << "]";
                 serveNames.push_back(name.str());
             }
             serveCnt = newSize;
@@ -74,7 +78,7 @@ namespace kmicki::hiddev
 
     void HidDevReader::ServeFrame::Execute()
     {
-        Log("HidDevReader::ServeFrame: Started.",LogLevelDebug);
+        sf::Log("Started.",LogLevelDebug);
 
         std::vector<int> missedTicks(0);
         std::vector<int> nonMissedTicks(0);
@@ -95,7 +99,7 @@ namespace kmicki::hiddev
             }
             std::this_thread::sleep_for(std::chrono::microseconds(500));
         }
-        Log("HidDevReader::ServeFrame: Stopped.",LogLevelDebug);
+        sf::Log("Stopped.",LogLevelDebug);
     }
 
     void HidDevReader::ServeFrame::FlushPipes()

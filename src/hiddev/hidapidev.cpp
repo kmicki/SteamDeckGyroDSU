@@ -13,7 +13,7 @@ namespace kmicki::hiddev
         if(hidApiInitialized == 0)
         {
             if(hid_init() < 0)
-                throw std::runtime_error("Error: HIDAPI initialization failed.");
+                throw std::runtime_error("HidApiDev: HIDAPI initialization failed.");
         }
         ++hidApiInitialized;
     }

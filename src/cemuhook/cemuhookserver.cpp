@@ -24,6 +24,9 @@ using namespace kmicki::log;
 
 namespace kmicki::cemuhook
 {
+    static const std::string cLogPrefix = "Server: ";
+    #include "log/locallog.h"
+
     const char * GetIP(sockaddr_in const& addr, char *buf)
     {
         return inet_ntop(addr.sin_family,&(addr.sin_addr.s_addr),buf,INET6_ADDRSTRLEN);
@@ -66,7 +69,7 @@ namespace kmicki::cemuhook
 
     void Server::Start() 
     {
-        Log("Server: Initializing.");
+        Log("Initializing.");
         if(serverThread.get() != nullptr)
         {
             {
@@ -85,7 +88,7 @@ namespace kmicki::cemuhook
         setsockopt(socketFd, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof(read_timeout));
 
         if(socketFd == -1)
-            throw std::runtime_error("Server: Socket could not be created.");
+            throw std::runtime_error(cLogPrefix + "Socket could not be created.");
         
         sockaddr_in sockInServer;
 
@@ -100,7 +103,7 @@ namespace kmicki::cemuhook
         sockInServer.sin_addr.s_addr = INADDR_ANY;
 
         if(bind(socketFd, (sockaddr*)&sockInServer, sizeof(sockInServer)) < 0)
-            throw std::runtime_error("Server: Bind failed.");
+            throw std::runtime_error(cLogPrefix + "Bind failed.");
 
         char ipStr[INET6_ADDRSTRLEN];
         ipStr[0] = 0;

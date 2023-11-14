@@ -16,6 +16,8 @@ using namespace kmicki::log;
 
 namespace kmicki::sdgyrodsu
 {
+    static const std::string cLogPrefix = "CemuhookAdapter: ";
+    #include "log/locallog.h"
 
     MotionData CemuhookAdapter::GetMotionData(SdHidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
     {
@@ -101,14 +103,14 @@ namespace kmicki::sdgyrodsu
       lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),
       isPersistent(persistent), toReplicate(0), noGyroCooldown(0)
     {
-        Log("CemuhookAdapter: Initialized. Waiting for start of frame grab.",LogLevelDebug);
+        Log("Initialized. Waiting for start of frame grab.",LogLevelDebug);
     }
 
     void CemuhookAdapter::StartFrameGrab()
     {
         lastInc = 0;
         ignoreFirst = true;
-        Log("CemuhookAdapter: Starting frame grab.",LogLevelDebug);
+        Log("Starting frame grab.",LogLevelDebug);
         reader.Start();
         frameServe = &reader.GetServe();
     }
@@ -155,13 +157,13 @@ namespace kmicki::sdgyrodsu
                 {
                     if(repeatedLoop == cMaxRepeatedLoop)
                     {
-                        Log("CemuhookAdapter: Frame was repeated. Ignoring...",LogLevelDebug);
+                        Log("Frame was repeated. Ignoring...",LogLevelDebug);
                         { LogF(LogLevelTrace) << std::setw(8) << std::setfill('0') << std::setbase(16)
                                         << "Current increment: 0x" << frame.Increment << ". Last: 0x" << lastInc << "."; }
                     }
                     if(repeatedLoop <= 0)
                     {
-                        Log("CemuhookAdapter: Frame is repeated continously...");
+                        Log("Frame is repeated continously...");
                         return toReplicate;
                     }
                     --repeatedLoop;
@@ -170,8 +172,8 @@ namespace kmicki::sdgyrodsu
                 {
                     if(lastInc != 0 && diff > 1)
                     {
-                        LogF logMsg((diff > 6)?LogLevelDefault:LogLevelDebug);
-                        logMsg << "CemuhookAdapter: Missed " << (diff-1) << " frames.";
+                        auto logMsg = LogF((diff > 6)?LogLevelDefault:LogLevelDebug);
+                        logMsg << "Missed " << (diff-1) << " frames.";
                         if(diff > 1000)
                             { LogF(LogLevelTrace) << std::setw(8) << std::setfill('0') << std::setbase(16)
                                      << "Current increment: 0x" << frame.Increment << ". Last: 0x" << lastInc << "."; }

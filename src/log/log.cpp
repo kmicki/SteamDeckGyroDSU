@@ -16,29 +16,47 @@ namespace kmicki::log
         return currentLogType;
     }
 
-    void Log(std::string message,LogLevel type)
+    namespace logbase
     {
-        if(type > currentLogType)
-            return;
+        void Log(std::string message,LogLevel type)
+        {
+            Log("",message,type);
+        }
+        
+        void Log(std::string prefix,std::string message,LogLevel type)
+        {
+            if(type > currentLogType)
+                return;
 
-        static std::mutex logMutex;
-        std::lock_guard lock(logMutex);
-        std::cout << message << std::endl;
-    }
+            static std::mutex logMutex;
+            std::lock_guard lock(logMutex);
+            std::cout << prefix << message << std::endl;
+        }
+        
+        LogF::LogF(std::string prefix, LogLevel type)
+        : std::ostringstream(), logType(type), logPrefix(prefix), moved(false)
+        {};
 
-    LogF::LogF(LogLevel type)
-    : std::ostringstream(), logType(type)
-    {};
+        LogF::LogF(LogLevel type)
+        : LogF("",type)
+        {};
 
-    LogF::~LogF()
-    {
-        Log(str(),logType);
-    }
+        LogF::LogF(LogF&& other)
+        : std::ostringstream(std::move(other)), logType(other.logType), logPrefix(other.logPrefix), moved(false)
+        {
+            other.moved = true;
+        }
 
-    void LogF::LogNow()
-    {
-        Log(str(),logType);
-        std::ostringstream newStream;
-        swap(newStream);
+        LogF::~LogF()
+        {
+            if(moved) return;
+            Log(logPrefix,str(),logType);
+        }
+
+        void LogF::LogNow()
+        {
+            Log(logPrefix,str(),logType);
+            str("");
+        }
     }
 }

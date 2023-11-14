@@ -7,33 +7,36 @@ using namespace kmicki::log;
 
 namespace kmicki::hiddev
 {
-    // Constants
+    namespace hdr {
+    static const std::string cLogPrefix = "HidDevReader: ";
+        #include "log/locallog.h"
+    }
 
-    void HandleMissedTicks(std::string name, std::string tickName, bool received, int & ticks, int period, int & nonMissed)
+    void HandleMissedTicks(std::string prefix, std::string tickName, bool received, int & ticks, int period, int & nonMissed)
     {
         if(GetLogLevel() < LogLevelDebug)
             return;
         if(!received)
         {
             if(ticks == 1)
-                { LogF(LogLevelDebug) << name << ": Start missing " << tickName << "."; }
+                { logbase::LogF(LogLevelDebug) << prefix << "Start missing " << tickName << "."; }
             ++ticks;
             if(ticks % period == 0)
             {
-                { LogF(LogLevelDebug) << name << ": Missed " << period << " " << tickName << " after " << nonMissed << " " << tickName << ". Still being missed."; }
+                { logbase::LogF(LogLevelDebug) << prefix << "Missed " << period << " " << tickName << " after " << nonMissed << " " << tickName << ". Still being missed."; }
                 if(ticks > period)
                     ticks -= period;
             }
         }
         else if(ticks > period)
         {
-            { LogF(LogLevelDebug) << name << ": Missed " << ((ticks+1) % period - 1) << " " << tickName << ". Not being missed anymore."; }
+            { logbase::LogF(LogLevelDebug) << prefix << "Missed " << ((ticks+1) % period - 1) << " " << tickName << ". Not being missed anymore."; }
             ticks = 0;
             nonMissed = 0;
         }
         else if(ticks > 0)
         {
-            { LogF(LogLevelDebug) << name << ": Missed " << ticks << " " << tickName << " after " << nonMissed << " " << tickName << "."; }
+            { logbase::LogF(LogLevelDebug) << prefix << "Missed " << ticks << " " << tickName << " after " << nonMissed << " " << tickName << "."; }
             ticks = 0;
             nonMissed = 0;
         }
@@ -57,7 +60,7 @@ namespace kmicki::hiddev
         AddOperation(readData);
         AddOperation(serveFrame);
 
-        Log("HidDevReader: Pipeline initialized. Waiting for start...",LogLevelDebug);
+        hdr::Log("Pipeline initialized. Waiting for start...",LogLevelDebug);
     }
 
 
@@ -80,24 +83,24 @@ namespace kmicki::hiddev
     {
         std::lock_guard startLock(startStopMutex); // prevent starting and stopping at the same time
 
-        Log("HidDevReader: Attempting to start the pipeline...",LogLevelDebug);
+        hdr::Log("Attempting to start the pipeline...",LogLevelDebug);
 
         for (auto& thread : pipeline)
             thread->Start();
 
-        Log("HidDevReader: Started the pipeline.");
+        hdr::Log("Started the pipeline.");
     }
     
     void HidDevReader::Stop()
     {
         std::lock_guard startLock(startStopMutex); // prevent starting and stopping at the same time
 
-        Log("HidDevReader: Attempting to stop the pipeline...",LogLevelDebug);
+        hdr::Log("Attempting to stop the pipeline...",LogLevelDebug);
 
         for (auto thread = pipeline.rbegin(); thread != pipeline.rend(); ++thread)
             (*thread)->TryStopThenKill(std::chrono::seconds(10));
 
-        Log("HidDevReader: Stopped the pipeline.");
+        hdr::Log("Stopped the pipeline.");
     }
 
     bool HidDevReader::IsStarted()

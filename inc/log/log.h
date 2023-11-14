@@ -20,33 +20,41 @@ namespace kmicki::log
 
     LogLevel const& GetLogLevel();
 
-    // Log a string message
-    void Log(std::string message,LogLevel type = LogLevelDefault);
-
-    // class for logging formatted message
-    // Behaves like output stream and message gets logged on destruction.
-    // Usage: { LogF() << "This is an example message number " << nr << "!"; }
-    class LogF : protected std::ostringstream
+    namespace logbase
     {
-        public:
+        // Log a string message
+        void Log(std::string message,LogLevel type = LogLevelDefault);
+        void Log(std::string prefix,std::string message,LogLevel type = LogLevelDefault);
 
-        LogF(LogLevel type = LogLevelDefault);
-        ~LogF();
-
-        template<class T>
-        LogF& operator<<(T const& val)
+        // class for logging formatted message
+        // Behaves like output stream and message gets logged on destruction.
+        // Usage: { LogF() << "This is an example message number " << nr << "!"; }
+        class LogF : protected std::ostringstream
         {
-            if(logType <= currentLogType)
-                *((std::ostringstream*)this) << val;            
-            return *this;
-        }
+            public:
 
-        // Log message without desctruction.
-        void LogNow();
+            LogF(LogLevel type = LogLevelDefault);
+            LogF(std::string prefix, LogLevel type = LogLevelDefault);
+            LogF(LogF&& other);
+            ~LogF();
 
-        private:
-        LogLevel logType;
-    };
+            template<class T>
+            LogF& operator<<(T const& val)
+            {
+                if(logType <= currentLogType)
+                    *((std::ostringstream*)this) << val;
+                return *this;
+            }
+
+            // Log message without desctruction.
+            void LogNow();
+
+            private:
+            LogLevel logType;
+            std::string logPrefix;
+            bool moved;
+        };
+    }
 }
 
 #endif
