@@ -10,6 +10,9 @@
 #include <future>
 #include <thread>
 #include <csignal>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
@@ -17,10 +20,9 @@ using namespace kmicki::log;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
 
+const std::string cExecutableName = "sdgyrodsu";
+
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
-const bool cRunPresenter = false;
-const bool cUseHiddevFile = false;
-const bool cTestRun = false;
 
 const int cFrameLen = 64;       // Steam Deck Controls' custom HID report length in bytes
 const int cScanTimeUs = 4000;   // Steam Deck Controls' period between received report data in microseconds
@@ -49,7 +51,7 @@ void SignalHandler(int signal)
                 msg << "SIGTERM";
                 break;
             default:
-                msg << "Other";
+                msg << "Other " << signal;
                 stopCmd = false;
                 break;
         }
@@ -68,55 +70,96 @@ void SignalHandler(int signal)
     stopCV.notify_all();
 }
 
-void PresenterRun(HidDevReader * reader)
+const char testRunFlag = 't';
+const char helpFlag = 'h';
+
+const std::unordered_map<char,std::string> flagDef =
 {
-    reader->Start();
-    auto & frameServe = reader->GetServe();
-    auto const& data = frameServe.GetPointer();
-    int temp;
-    void* tempPtr = reinterpret_cast<void*>(&temp);
-    Presenter::Initialize();
-    while(true)
+    {testRunFlag,"--testrun"},
+    {helpFlag,"--help"}
+};
+
+const std::unordered_map<char,std::string> flagDesc =
+{
+    {testRunFlag,"\tRead from controller without client connected."},
+    {helpFlag,"\tThis message."}
+};
+
+void HelpMessage()
+{
+    Log("Usage: " + cExecutableName + " [parameters]");
+    Log(" ");
+    Log("Parameters:");
+    for(const auto& [key,val] : flagDef)
+        { LogF() << '-' << key << "," << val << flagDesc.at(key); }
+};
+
+void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std::function<void()>> &flagActions)
+{
+    if(argc <= 1)
+        return;
+
+    for(int i = 1;i < argc;++i)
     {
-        auto lock = frameServe.GetConsumeLock();
-        Presenter::Present(GetSdFrame(*data));
+        std::string arg(argv[i]);
+
+        if(arg.length() < 2 || arg[0] != '-')
+            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
+
+        std::string flagStr = "";
+
+        if(arg[0] == '-' && arg[1] != '-')
+            flagStr = arg.substr(1);
+
+        std::size_t fpos;
+        bool anyFlag = false;
+
+        for(const auto& [key, val] : flagDef)
+        {
+            if(flagStr.find(key) != std::string::npos || arg == val)
+            {
+                (flagActions.at(key))();
+                anyFlag = true;
+                while((fpos = flagStr.find(key)) != std::string::npos)
+                    flagStr.erase(fpos,1);
+            }
+        }
+
+        if(flagStr.length() > 0)
+            throw std::runtime_error("MAIN: Unknown flags: -" + flagStr);
+        if(!anyFlag)
+            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
     }
-    Presenter::Finish();
 }
 
-int main()
+int main(int argc, char **argv)
 {
     signal(SIGINT,SignalHandler);
     signal(SIGTERM,SignalHandler);
 
+    bool confTestRun = false;
+    bool helpDisplayed = false;
+
+    const std::unordered_map<char,std::function<void()>> flagActions =
+    {
+        { testRunFlag   ,   [&confTestRun]() { confTestRun = true;                      }},
+        { helpFlag      ,   [&helpDisplayed]() { HelpMessage(); helpDisplayed = true;   }}
+    };
+
+    ProcessPars(argc,argv,flagActions);
+
+    if(helpDisplayed)
+        return 0;
+
     stop = false;
 
-    if(cRunPresenter)
-        SetLogLevel(LogLevelNone);
-    else
-        SetLogLevel(cLogLevel);
+    SetLogLevel(cLogLevel);
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
 
     std::unique_ptr<HidDevReader> readerPtr;
 
-    if(cUseHiddevFile)
-    {
-        int hidno = FindHidDevNo(cVID,cPID);
-        if(hidno < 0) 
-        {
-            Log("Steam Deck Controls' HID device not found.");
-            return 0;
-        }
-
-        { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
-        
-        readerPtr.reset(new HidDevReader(hidno,cFrameLen,cScanTimeUs));
-    }
-    else
-    {
-        readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
-    }
+    readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
 
     HidDevReader &reader = *readerPtr;
 
@@ -130,10 +173,8 @@ int main()
     int stopping = 0;
 
     std::unique_ptr<std::thread> presenter;
-    if(cRunPresenter)
-        presenter.reset(new std::thread(PresenterRun,&reader));
 
-    if(cTestRun && !cRunPresenter)
+    if(confTestRun)
         reader.Start();
 
     {
