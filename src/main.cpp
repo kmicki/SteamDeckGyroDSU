@@ -1,7 +1,5 @@
 #include "hiddev/hiddevreader.h"
-#include "hiddev/hiddevfinder.h"
 #include "sdgyrodsu/sdhidframe.h"
-#include "sdgyrodsu/presenter.h"
 #include "cemuhook/cemuhookprotocol.h"
 #include "cemuhook/cemuhookserver.h"
 #include "sdgyrodsu/cemuhookadapter.h"
@@ -162,8 +160,6 @@ int main(int argc, char **argv)
     readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
 
     HidDevReader &reader = *readerPtr;
-
-    reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
 
     CemuhookAdapter adapter(reader);
     reader.SetNoGyro(adapter.NoGyro);

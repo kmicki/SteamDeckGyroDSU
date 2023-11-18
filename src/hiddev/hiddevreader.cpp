@@ -51,22 +51,12 @@ namespace kmicki::hiddev
         pipeline.emplace_back(operation);
     }
 
-    void HidDevReader::ConstructPipeline(ReadData *_readData, int const& _frameLen, int const& scanTimeUs, bool useProcessData)
+    void HidDevReader::ConstructPipeline(ReadData *_readData)
     {
         auto* readDataOp = _readData;
-        ProcessData* processData;
-        ServeFrame* serveFrame;
-        if(useProcessData)
-        {
-            processData = new ProcessData(_frameLen, *readDataOp, scanTimeUs);
-            serveFrame = new ServeFrame(processData->Frame);
-        }
-        else
-            serveFrame = new ServeFrame(readDataOp->Data);
+        auto* serveFrame = new ServeFrame(readDataOp->Data);
 
         AddOperation(readDataOp);
-        if(useProcessData)
-            AddOperation(processData);
         AddOperation(serveFrame);
 
         serve = serveFrame;
@@ -75,26 +65,13 @@ namespace kmicki::hiddev
         Log("HidDevReader: Pipeline initialized. Waiting for start...",LogLevelDebug);
     }
 
-    HidDevReader::HidDevReader(int const& hidNo, int const& _frameLen, int const& scanTimeUs) 
-    : frameLen(_frameLen), startStopMutex(), readDataApi(nullptr)
-    {
-        if(hidNo < 0) throw std::invalid_argument("hidNo");
-
-        std::stringstream inputFilePathFormatter;
-        inputFilePathFormatter << "/dev/usb/hiddev" << hidNo;
-        inputFilePath = inputFilePathFormatter.str();
-
-        auto* readDataOp = new ReadDataFile(inputFilePath, _frameLen, scanTimeUs);
-        ConstructPipeline(readDataOp, _frameLen, scanTimeUs);
-    }
-
 
     HidDevReader::HidDevReader(uint16_t const& vId, uint16_t const& pId, int const& interfaceNumber ,int const& _frameLen, int const& scanTimeUs) 
     : frameLen(_frameLen), startStopMutex()
     {
         readDataApi = new ReadDataApi(vId, pId, interfaceNumber, _frameLen, scanTimeUs);
 
-        ConstructPipeline(readDataApi, _frameLen, scanTimeUs,false);
+        ConstructPipeline(readDataApi);
     }
 
 
@@ -111,13 +88,6 @@ namespace kmicki::hiddev
     void HidDevReader::StopServe(Serve<frame_t> & _serve)
     {
         serve->StopServe(_serve);
-    }
-
-    void HidDevReader::SetStartMarker(std::vector<char> const& marker)
-    {
-        if(readData == nullptr)
-            return;
-        readData->SetStartMarker(marker);
     }
 
     void HidDevReader::Start()
