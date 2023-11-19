@@ -406,7 +406,7 @@ ifndef NOPREPARE
 #	Second expansion of order only dependency is so that this targets will not run in parallel
 $(DEPENDCHECKFILES) :: $(RUNDEPS) | $$(call removefrom,$$(call getpos,$$@,$(DEPENDCHECKFILES)),$(DEPENDCHECKFILES))
 	@echo -e "Missing $@. Reinstalling \e[1m$(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES))\e[0m..."
-	sudo pacman -S --noconfirm $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
+	sudo pacman -S --noconfirm --noscriptlet $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
 
 endif # ifndef NOPREPARE
 
