@@ -65,3 +65,13 @@ else
 	echo -e "\e[1mFailed enabling the service.\e[0m"
 	exit 28
 fi
+
+echo "Setting up desktop shortcuts..."
+cp update-sdgyrodsu.desktop $HOME/Desktop/ >/dev/null
+if chmod +x $HOME/Desktop/update-sdgyrodsu.desktop >/dev/null; then
+	echo "Update shortcut copied."
+fi
+cp uninstall-sdgyrodsu.desktop $HOME/Desktop/ >/dev/null
+if chmod +x $HOME/Desktop/uninstall-sdgyrodsu.desktop >/dev/null; then
+	echo "Uninstall shortcut copied."
+fi
