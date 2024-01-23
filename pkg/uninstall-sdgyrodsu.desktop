@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=~/sdgyrodsu/uninstall.sh
+Icon=delete
+Name[en_US]=Uninstall GyroDSU
+Name=Uninstall GyroDSU
+StartupNotify=false
+Terminal=true
+Type=Application
