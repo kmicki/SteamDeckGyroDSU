@@ -3,36 +3,13 @@
 
 ## Install/Update
 
-In **Steam Deck**'s desktop mode, open *Konsole*.
+Open this page in the browser in **Steam Deck**'s desktop mode.
 
-Execute command:
+Download [Update File](https://github.com/kmicki/SteamDeckGyroDSU/releases/latest/download/update-sdgyrodsu.desktop), save it to Desktop and run it by touching or double-clicking *Update GyroDSU*.
 
-    bash <(curl -sL https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/update.sh)
-    
-Above command will download the binary package and install it. It can be also used to update to the newest version at any time.
+This Desktop shortcut may be used also to update the *SteamDeckGyroDSU* to the most recent version.
 
-When **SteamDeckGyroDSU** is already installed, it can also be updated by running following command:
-
-    $HOME/sdgyrodsu/update.sh
-
-To uninstall:
-
-    $HOME/sdgyrodsu/uninstall.sh
-
-### Remarks about update from version 1.*
-
-Versions **1.\*** of **SteamDeckGyroDSU** required superuser access to be installed.
-
-Versions **2.0** and above don't need it.
-
-Still, after update from **1.\*** to **2.0** or higher, the changes done with superuser access will be left in the system.
-Uninstall script will not remove them anymore since version **2.0**.
-
-Reverting those changes is not necessary but can be done by executing following command (requires superuser access):
-
-    $HOME/sdgyrodsu/v1cleanup.sh
-
-after version **2.0** or above is installed.
+To uninstall, run *Uninstall GyroDSU* from Desktop by touching or double-clicking.
     
 ## Usage
 

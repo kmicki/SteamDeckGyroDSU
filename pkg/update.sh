@@ -26,4 +26,7 @@ code=$?
 cd
 rm -rf $HOME/SteamDeckGyroDSUSetup
 
+read -n 1 -s -r -p "Finished. Press any key to exit."
+echo " "
+
 exit $code
