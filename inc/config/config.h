@@ -62,7 +62,7 @@ namespace kmicki::config
         std::vector<std::unique_ptr<ConfigItemBase>> & configData;
 
         template<class T>
-        void SetValue(std::string const& name, T const& value);
+        void SetValue(std::string const& name, T const& value, ConfigComment const& defaultComment = ConfigComment());
         
         template<class T>
         T const* GetValuePtr(std::string const& name) const;

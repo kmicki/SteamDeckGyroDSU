@@ -118,13 +118,13 @@ namespace kmicki::config
             if((*item)->Update(value,msg))
             {
                 { LogF(LogLevelTrace) << "ConfigFile::LoadConfig: Line " << line << " - " << msg; }
-                if(!precedingCommentAll.empty())
-                    (*item)->Comment.PrecedingComment = precedingCommentAll;
-                if(!inlineComment.empty())
-                    (*item)->Comment.InlineComment = inlineComment;
             }
             else
                 { LogF(LogLevelDebug) << "ConfigFile::LoadConfig: Line " << line << " - " << msg; }
+            if(!precedingCommentAll.empty())
+                (*item)->Comment.PrecedingComment = precedingCommentAll;
+            if(!inlineComment.empty())
+                (*item)->Comment.InlineComment = inlineComment;
         }
 
         Log("ConfigFile::LoadConfig: Configuration loaded.",LogLevelDebug);
@@ -169,6 +169,9 @@ namespace kmicki::config
         }
 
         int line = 0;
+
+        file << "# SteamDeckGyroDSU Configuration file\n\n";
+
         for(auto& item : configuration)
         {
             std::stringstream cmt(item->Comment.PrecedingComment);
@@ -179,6 +182,7 @@ namespace kmicki::config
             std::string value = item->ValToString();
             file << std::setw(max) << std::left << item->Name << ' ' << cSeparator << ' ' << value;
             InsertComment(file,item->Comment.InlineComment,true);
+            file << "\n";
             { LogF(LogLevelTrace) << "ConfigFile::SaveConfig: Line " << ++line << " - saved item, Name=" << item->Name << " Value=" << value; }
         }
 

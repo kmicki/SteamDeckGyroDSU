@@ -49,9 +49,11 @@ namespace kmicki::cemuhook
 
     static const std::string cInterfaceStr = "interface";
     static const ConfigInterface cInterfaceDefault = CfgIfAll;
+    static const config::ConfigComment cInterfaceComment = { "On which network interfaces server is listening. Possible values:\nall - [default value] server listens on all interfaces (0.0.0.0)\nlocal - server listens only on localhost (127.0.0.1)." };
 
     static const std::string cPortStr = "port";
     static const int cPortDefault = 26760;
+    static const config::ConfigComment cPortComment = { "UDP port number on which the server is listening." };
 
     Config::Config(std::vector<std::unique_ptr<ConfigItemBase>> & _configData, std::string prefix)
     : config::Config(_configData, (prefix.empty() ? "" : (prefix + ".")) + cPrefix)
@@ -81,8 +83,8 @@ namespace kmicki::cemuhook
 
     void Config::Save()
     {
-        SetValue(cInterfaceStr,interface);
-        SetValue(cPortStr,port);
+        SetValue(cInterfaceStr,interface,cInterfaceComment);
+        SetValue(cPortStr,port,cPortComment);
     }
 
     void Config::ToDefault()

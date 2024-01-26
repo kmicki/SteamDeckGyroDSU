@@ -10,7 +10,7 @@ namespace kmicki::config
     { }
 
     template<class T>
-    void Config::SetValue(std::string const& name, T const& value)
+    void Config::SetValue(std::string const& name, T const& value, ConfigComment const& defaultComment)
     {
         auto fullName = GetFullName(name);
         ConfigItem<T>* itemPtr;
@@ -21,7 +21,7 @@ namespace kmicki::config
         
         if(item == configData.end())
         {
-            configData.emplace_back(new ConfigItem(fullName,value));
+            configData.emplace_back(new ConfigItem(fullName,value,defaultComment));
             return;
         }
 
