@@ -9,15 +9,13 @@
 #include "pipeline/pipeout.h"
 #include "pipeline/serve.h"
 
-#include "hiddevfile.h"
-
 using namespace kmicki::pipeline;
 
 namespace kmicki::hiddev 
 {
     void HandleMissedTicks(std::string name, std::string tickName, bool received, int & ticks, int period, int & nonMissed);
 
-    // Reads periodic data from a given HID device (/dev/usb/hiddevX)
+    // Reads periodic data from a given HID device (based on VID, PID and interface number)
     // in constant-length frames and provides most recent frame.
     class HidDevReader
     {
@@ -29,7 +27,10 @@ namespace kmicki::hiddev
 
         // Constructor.
         // Starts pipeline.
-        // hidNo: ID of HID device (X in /dev/usb/hiddevX)
+        // Uses hidapi to obtain data from device.
+        // vId: vendor ID
+        // pId: product ID
+        // interfaceNumber: interface number of the device
         // frameLen: Size of single HID data frame
         // scanTime: Period between frames in ms. 
         //           If it will be around or lower than actual period of incoming frames,
@@ -37,15 +38,12 @@ namespace kmicki::hiddev
         //           If it will be much higher then the generated frames will be out of sync
         //           (a block of consecutive frames and then skip)
         // maxScanTime: maximum scan time
-        HidDevReader(int const& hidNo, int const& _frameLen, int const& scanTimeUs);
+        HidDevReader(uint16_t const& vId, uint16_t const& pId, const int& interfaceNumber, int const& _frameLen, int const& scanTimeUs);
 
         // Destructor. 
         // Stops pipeline.
         // Closes input file.
         ~HidDevReader();
-
-        // Set start marker in case hiddev file doesn't provide a way to find start of the frame.
-        void SetStartMarker(std::vector<char> const& marker);
 
         // Get frame serve
         Serve<frame_t> & GetServe();
@@ -65,6 +63,8 @@ namespace kmicki::hiddev
         // Is grabbing frames being stopped right now?
         bool IsStopping();
 
+        void SetNoGyro(SignalOut& _noGyro);
+
         private:
 
         // Pipeline threads
@@ -73,48 +73,40 @@ namespace kmicki::hiddev
         {
             public:
             ReadData() = delete;
-            ReadData(std::string const& _inputFilePath, int const& _frameLen, int const& _scanTimeUs);
+            ReadData(int const& _frameLen);
             ~ReadData();
 
-            void ReconnectInput();
-            void DisconnectInput();
-
-            void SetStartMarker(std::vector<char> const& marker); 
+            void SetStartMarker(std::vector<char> const& marker);
 
             PipeOut<std::vector<char>> Data;
             SignalOut Unsynced;
 
             protected:
 
-            void Execute() override;
             void FlushPipes() override;
-
-            private:
-            bool CheckData(std::unique_ptr<std::vector<char>> const& data, ssize_t readCnt);
-            HidDevFile inputFile;
             std::vector<char> startMarker;
         };
-
-        class ProcessData : public Thread
+        
+        class ReadDataApi : public ReadData
         {
             public:
-            ProcessData() = delete;
-            ProcessData(int const& _frameLen, ReadData & _data, int const& scanTimeUs);
-            ~ProcessData();
+            ReadDataApi() = delete;
+            ReadDataApi(uint16_t const& vId, uint16_t const& pId, const int& _interfaceNumber, int const& _frameLen, int const& _scanTimeUs);
+            ~ReadDataApi();
 
-            PipeOut<frame_t> Frame;
-            SignalOut ReadStuck;
+            void SetNoGyro(SignalOut& _noGyro);
 
             protected:
 
             void Execute() override;
-            void FlushPipes() override;
 
             private:
-            ReadData & readData;
-            PipeOut<std::vector<char>> & data;
+            uint16_t vId;
+            uint16_t pId;
+            int interfaceNumber;
+            int timeout;
 
-            std::chrono::microseconds timeout;
+            SignalOut *noGyro;
         };
 
         class ServeFrame : public Thread
@@ -147,17 +139,18 @@ namespace kmicki::hiddev
         static const int cByteposInput;
 
         int frameLen;
-
-        std::string inputFilePath;
         
         std::vector<std::unique_ptr<Thread>> pipeline;
         ServeFrame * serve;
         ReadData* readData;
+        ReadDataApi* readDataApi;
 
         // Mutex
         std::mutex startStopMutex;
 
         void AddOperation(pipeline::Thread * operation);
+
+        void ConstructPipeline(ReadData* _readData);
 
         
     };

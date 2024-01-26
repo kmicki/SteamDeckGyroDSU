@@ -95,7 +95,11 @@ namespace kmicki::cemuhook
         sockInServer = sockaddr_in();
 
         sockInServer.sin_family = AF_INET;
-        sockInServer.sin_port = htons(config.Port());
+        if (const char* customPort = std::getenv("SDGYRO_SERVER_PORT")) {
+          sockInServer.sin_port = htons(std::atoi(customPort));
+        } else {
+          sockInServer.sin_port = htons(config.Port());
+        }
         switch(config.Interface())
         {
             case CfgIfLocal:
@@ -301,7 +305,7 @@ namespace kmicki::cemuhook
                             }
                             else
                             {
-                                { LogF(LogLevelTrace) << "Server: Request for data from existing client. " << addressText << "."; }
+                                // { LogF(LogLevelTrace) << "Server: Request for data from existing client. " << addressText << "."; }
                                 sharedLock.unlock();
                                 {
                                     std::lock_guard lock(clientsMutex);

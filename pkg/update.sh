@@ -1,3 +1,5 @@
+#!/bin/sh
+
 echo "Grabbing latest release..."
 if curl -L -O -s https://github.com/kmicki/SteamDeckGyroDSU/releases/latest/download/SteamDeckGyroDSUSetup.zip >/dev/null; then
 	echo "Latest release downloaded."
@@ -24,5 +26,7 @@ code=$?
 cd
 rm -rf $HOME/SteamDeckGyroDSUSetup
 
-exit $code
+read -n 1 -s -r -p "Finished. Press any key to exit."
+echo " "
 
+exit $code

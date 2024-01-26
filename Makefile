@@ -62,7 +62,7 @@ ADDRELEASEPARS = -O3
 # 		Additional parameters for debug build
 ADDDEBUGPARS = -g
 # 		Additional libraries parameters
-ADDLIBS = -pthread -lncurses
+ADDLIBS = -pthread -lhidapi-hidraw
 
 #	Install
 
@@ -79,11 +79,11 @@ PREPARESCRIPT = scripts/prepare.sh
 
 # 	Check files - these files existence will be checked to determine if 
 #	the corresponding dependency is properly installed
-DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/) /usr/include/c++/*/)vector /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/ncurses.h
+DEPENDCHECKFILES := $(firstword $(wildcard /usr/include/c++/*/) /usr/include/c++/*/)vector /usr/include/errno.h /usr/include/linux/can/error.h /usr/include/hidapi/hidapi.h
 
 # 	Dependencies - names of packages to install with pacman -S
 #	if the corresponding check file is not found
-DEPENDENCIES := gcc glibc linux-api-headers ncurses
+DEPENDENCIES := gcc glibc linux-api-headers hidapi
 
 # Functions
 
@@ -182,14 +182,15 @@ $(shell echo "Makefile targets: $(MAKECMDGOALS)" $(DUMMYSHELLSILENT))
 
 # Prepare
 
+RUNDEPS := mk_deps_run.tmp
+FINISHDEPS := mk_deps.tmp
+CHECKDEPS := mk_chdeps.tmp
+
+ifndef NOPREPARE
 
 TEMPFILESNEC := $(or $(if $(MAKECMDGOALS),,x),$(findstring release,$(MAKECMDGOALS)),$(findstring debug,$(MAKECMDGOALS))\
 ,$(findstring install,$(MAKECMDGOALS)),$(findstring createpkg,$(MAKECMDGOALS)),$(findstring preparepkg,$(MAKECMDGOALS))\
 ,$(findstring prepare,$(MAKECMDGOALS)))
-
-RUNDEPS := mk_deps_run.tmp
-FINISHDEPS := mk_deps.tmp
-CHECKDEPS := mk_chdeps.tmp
 
 ifneq ($(TEMPFILESNEC),)
 $(shell echo "Creating temporary files." 1>&2)
@@ -270,6 +271,12 @@ $(DEPENDCHECKFILES) &:: $(RUNDEPS)
 	sudo pacman-key --init &>/dev/null
 	sudo pacman-key --populate &>/dev/null
 
+else # ifndef NOPREPARE
+
+prepare: ;
+
+endif # ifndef NOPREPARE
+
 #  See second expansion at the bottom
 
 # Build
@@ -314,7 +321,7 @@ $(PKGBINPATH): 		$(PKGBINFILES)
 
 # Clean
 
-clean: 	dbgclean relclean
+clean: 	dbgclean relclean tmpclean
 	rm -f $(MKTMPFILE)
 
 relclean:
@@ -342,6 +349,15 @@ pkgbinclean:
 cleanall: clean pkgclean
 	@echo "Removing object,binary and binary package directories"
 	rm -rf $(PKGBINDIR) $(OBJDIR) $(BINDIR)
+	rm -f $(FINISHDEPS)
+	rm -f $(RUNDEPS)
+	rm -f $(CHECKDEPS)
+
+tmpclean:
+	@echo "Removing temporary files."
+	rm -f $(FINISHDEPS)
+	rm -f $(RUNDEPS)
+	rm -f $(CHECKDEPS)
 
 # Install
 
@@ -381,6 +397,8 @@ $(OBJDIR) $(BINDIR) $(PKGDIR) $(PKGBINDIR):
 
 # Prepare
 
+ifndef NOPREPARE
+
 .IGNORE: $(DEPENDCHECKFILES)
 
 #	Reinstall. Normal multiple target. Each dependency check file is
@@ -388,8 +406,9 @@ $(OBJDIR) $(BINDIR) $(PKGDIR) $(PKGBINDIR):
 #	Second expansion of order only dependency is so that this targets will not run in parallel
 $(DEPENDCHECKFILES) :: $(RUNDEPS) | $$(call removefrom,$$(call getpos,$$@,$(DEPENDCHECKFILES)),$(DEPENDCHECKFILES))
 	@echo -e "Missing $@. Reinstalling \e[1m$(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES))\e[0m..."
-	sudo pacman -S --noconfirm $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
+	sudo pacman -S --noconfirm --noscriptlet $(call getmatch,$@,$(DEPENDCHECKFILES),$(DEPENDENCIES)) &>/dev/null
 
+endif # ifndef NOPREPARE
 
 # Build
 

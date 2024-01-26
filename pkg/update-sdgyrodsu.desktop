@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=bash <(curl -sL https://raw.githubusercontent.com/kmicki/SteamDeckGyroDSU/master/pkg/update.sh)
+Icon=keyboard-caps-disabled
+Name[en_US]=Update GyroDSU
+Name=Update GyroDSU
+StartupNotify=false
+Terminal=true
+Type=Application
