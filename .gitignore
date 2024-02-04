@@ -42,3 +42,5 @@ launchdebug
 # Additional files
 *.hex
 *.tmp
+
+.vscode/settings.json
