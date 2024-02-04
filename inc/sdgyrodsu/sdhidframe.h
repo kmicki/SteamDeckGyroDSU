@@ -6,7 +6,7 @@
 
 namespace kmicki::sdgyrodsu
 {
-    typedef kmicki::hiddev::HidDevReader::frame_t frame_t;
+    typedef kmicki::hiddev::frame_t frame_t;
 
     struct SdHidFrame 
     {

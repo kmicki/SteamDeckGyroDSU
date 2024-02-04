@@ -4,6 +4,8 @@
 #include <vector>
 #include <shared_mutex>
 
+#include "hiddev.h"
+
 #include "pipeline/thread.h"
 #include "pipeline/signalout.h"
 #include "pipeline/pipeout.h"
@@ -20,8 +22,6 @@ namespace kmicki::hiddev
     class HidDevReader
     {
         public:
-
-        typedef std::vector<char> frame_t;
 
         HidDevReader() = delete;
 

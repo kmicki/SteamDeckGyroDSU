@@ -11,7 +11,7 @@ namespace kmicki::hiddev
     : frame(_frame), frames(), framesMutex(), framesCv()
     { }
 
-    Serve<HidDevReader::frame_t> & HidDevReader::ServeFrame::GetServe()
+    Serve<frame_t> & HidDevReader::ServeFrame::GetServe()
     {
         {
             std::unique_lock lock(framesMutex);
@@ -110,9 +110,9 @@ namespace kmicki::hiddev
         framesCv.wait(lock,[&] { return frames.size() > 0 || !ShouldContinue(); });
     }
 
-    std::vector<Serve<HidDevReader::frame_t>::ServeLock> HidDevReader::ServeFrame::GetServeLocks() 
+    std::vector<Serve<frame_t>::ServeLock> HidDevReader::ServeFrame::GetServeLocks() 
     {
-        std::vector<Serve<HidDevReader::frame_t>::ServeLock> result;
+        std::vector<Serve<frame_t>::ServeLock> result;
         for(auto & serve : frames)
         {
             result.push_back(std::move(serve->GetServeLock()));

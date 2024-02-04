@@ -68,7 +68,7 @@ namespace kmicki::hiddev
         return dev != nullptr;
     }
 
-    int HidApiDev::Read(std::vector<char> & data)
+    int HidApiDev::Read(frame_t & data)
     {
         if(dev == nullptr)
             return 0;
@@ -76,7 +76,7 @@ namespace kmicki::hiddev
         int readCnt = 0;
 
         do {
-            auto readCntLoc = hid_read_timeout(dev,(unsigned char*)(data.data()+readCnt),data.size()-readCnt,timeout);
+            auto readCntLoc = hid_read_timeout(dev,data.data()+readCnt,data.size()-readCnt,timeout);
             if(readCntLoc < 0)
                 return readCntLoc;
             if(readCntLoc == 0)
@@ -88,17 +88,7 @@ namespace kmicki::hiddev
         return readCnt;
     }
 
-    bool HidApiDev::Write(std::vector<char> & data)
-    {
-        if(dev == nullptr)
-            return false;
-
-        auto writeCnt = hid_write(dev,(unsigned char*)(data.data()),data.size());
-
-        return writeCnt == data.size();
-    }
-
-    bool HidApiDev::Write(std::vector<unsigned char> & data)
+    bool HidApiDev::Write(frame_t & data)
     {
         if(dev == nullptr)
             return false;

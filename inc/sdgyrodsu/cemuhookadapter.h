@@ -6,6 +6,7 @@
 #include "hiddev/hiddevreader.h"
 #include "pipeline/serve.h"
 #include "pipeline/signalout.h"
+#include "hiddev/hiddev.h"
 
 namespace kmicki::sdgyrodsu
 {
@@ -48,7 +49,7 @@ namespace kmicki::sdgyrodsu
         int toReplicate;
         int noGyroCooldown;
 
-        pipeline::Serve<hiddev::HidDevReader::frame_t> * frameServe;
+        pipeline::Serve<frame_t> * frameServe;
     };
 }
 

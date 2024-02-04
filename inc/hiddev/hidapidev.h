@@ -5,6 +5,8 @@
 #include <vector>
 #include <hidapi/hidapi.h>
 
+#include "hiddev.h"
+
 namespace kmicki::hiddev
 {
     class HidApiDev
@@ -15,12 +17,11 @@ namespace kmicki::hiddev
         ~HidApiDev();
 
         bool Open();
-        int Read(std::vector<char> & data);
+        int Read(frame_t & data);
         bool Close();
         bool IsOpen();
         bool EnableGyro();
-        bool Write(std::vector<char> & data);
-        bool Write(std::vector<unsigned char> & data);
+        bool Write(frame_t & data);
 
         private:
         uint16_t vId;
