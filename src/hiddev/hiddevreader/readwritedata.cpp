@@ -9,17 +9,32 @@ namespace kmicki::hiddev
 {
     static const int cApiScanTimeToTimeout = 2;
 
-    // Definition - ReadDataApi
-    HidDevReader::ReadDataApi::ReadDataApi(uint16_t const& _vId, uint16_t const& _pId, const int& _interfaceNumber, int const& _frameLen, int const& _scanTimeUs)
-    : vId(_vId), pId(_pId), ReadData(_frameLen), timeout(cApiScanTimeToTimeout*_scanTimeUs/1000),interfaceNumber(_interfaceNumber),noGyro(nullptr)
+    
+
+    // Definition - ReadWriteData
+    HidDevReader::ReadWriteData::ReadWriteData(uint16_t const& _vId, uint16_t const& _pId, const int& _interfaceNumber, int const& _frameLen, int const& _scanTimeUs)
+    : vId(_vId), pId(_pId), interfaceNumber(_interfaceNumber),
+      timeout(cApiScanTimeToTimeout*_scanTimeUs/1000), writeData(nullptr),
+      ReadData(new frame_t(_frameLen),
+               new frame_t(_frameLen), 
+               new frame_t(_frameLen)),
+      Unsynced()
     { }
 
-    void HidDevReader::ReadDataApi::SetNoGyro(SignalOut &_noGyro)
+    HidDevReader::ReadWriteData::~ReadWriteData()
     {
-        noGyro = &_noGyro;
+        TryStopThenKill();
+    }
+
+    void HidDevReader::ReadWriteData::FlushPipes()
+    { }
+
+    void HidDevReader::ReadWriteData::SetWriteData(PipeOut<frame_t> &_writeData)
+    {
+        writeData = &_writeData;
     }
  
-    void HidDevReader::ReadDataApi::Execute()
+    void HidDevReader::ReadWriteData::Execute()
     {
         HidApiDev dev(vId,pId,interfaceNumber,timeout);
         
@@ -27,7 +42,7 @@ namespace kmicki::hiddev
         if(!dev.Open())
             throw std::runtime_error("HidDevReader::ReadDataApi: Problem opening HID device.");
 
-        auto const& data = Data.GetPointerToFill();
+        auto const& _readData = ReadData.GetPointerToFill();
 
         Log("HidDevReader::ReadDataApi: Started.",LogLevelDebug);
 
@@ -36,19 +51,19 @@ namespace kmicki::hiddev
             if(!ShouldContinue())
                 break;
 
-            if(noGyro && noGyro->TrySignal())
+            if(writeData && writeData->TryData())
             {
-                Log("HidDevReader::ReadDataApi: Try reenabling gyro.",LogLevelTrace);
-                if(dev.EnableGyro())
+                Log("HidDevReader::ReadDataApi: Try writing data to device.",LogLevelTrace);
+                if(dev.Write(writeData->GetData()))
                     Log("HidDevReader::ReadDataApi: Gyro reenabled.",LogLevelDebug);
                 else
                     Log("HidDevReader::ReadDataApi: Gyro reenaling failed.");
                 continue;
             }
 
-            auto readCnt = dev.Read(*data);
+            auto readCnt = dev.Read(*_readData);
 
-            if(readCnt < data->size())
+            if(readCnt < _readData->size())
             {
                 { LogF(LogLevelTrace) << "HidDevReader::ReadDataApi: Not enough bytes read: " << readCnt << "."; }
                 continue;
@@ -60,7 +75,7 @@ namespace kmicki::hiddev
                 continue;
             }
 
-            Data.SendData();
+            ReadData.SendData();
         }
     
         Log("HidDevReader::ReadDataApi: Closing HID device.",LogLevelDebug);

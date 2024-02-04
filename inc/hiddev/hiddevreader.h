@@ -57,38 +57,24 @@ namespace kmicki::hiddev
         // Is grabbing frames being stopped right now?
         bool IsStopping();
 
-        void SetNoGyro(SignalOut& _noGyro);
+        // Set pipe for writing data to device
+        void SetWriteData(PipeOut<frame_t>& _writeData);
 
-        private:
+        protected:
 
         // Pipeline threads
-
-        class ReadData : public Thread
+        
+        class ReadWriteData : public Thread
         {
             public:
-            ReadData() = delete;
-            ReadData(int const& _frameLen);
-            ~ReadData();
+            ReadWriteData() = delete;
+            ReadWriteData(uint16_t const& vId, uint16_t const& pId, int const& interfaceNumber, int const& _frameLen, int const& scanTimeUs);
+            ~ReadWriteData();
 
-            void SetStartMarker(std::vector<char> const& marker);
+            void SetWriteData(PipeOut<frame_t>& _writeData);
 
-            PipeOut<std::vector<char>> Data;
+            PipeOut<frame_t> ReadData;
             SignalOut Unsynced;
-
-            protected:
-
-            void FlushPipes() override;
-            std::vector<char> startMarker;
-        };
-
-        class ReadDataApi : public ReadData
-        {
-            public:
-            ReadDataApi() = delete;
-            ReadDataApi(uint16_t const& vId, uint16_t const& pId, const int& _interfaceNumber, int const& _frameLen, int const& _scanTimeUs);
-            ~ReadDataApi();
-
-            void SetNoGyro(SignalOut& _noGyro);
 
             protected:
 
@@ -100,6 +86,9 @@ namespace kmicki::hiddev
             int interfaceNumber;
             int timeout;
 
+            PipeOut<std::vector<unsigned char>> *writeData;
+            
+            void FlushPipes() override;
         };
 
         class ServeFrame : public Thread
@@ -129,8 +118,7 @@ namespace kmicki::hiddev
         };
         
         std::vector<std::unique_ptr<Thread>> pipeline;
-        ReadData* readData;
-        ReadDataApi* readDataApi;
+        ReadWriteData* readWriteData;
         ServeFrame * serveFrame;
 
         // Mutex

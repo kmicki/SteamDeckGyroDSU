@@ -51,7 +51,7 @@ namespace kmicki::hiddev
     HidDevReader::HidDevReader(uint16_t const& vId, uint16_t const& pId, int const& interfaceNumber, int const& _frameLen, int const& scanTimeUs) 
     : startStopMutex()
     {
-        readData = new ReadDataApi(vId,pId,interfaceNumber,_frameLen,scanTimeUs)
+        readWriteData = new ReadWriteData(vId,pId,interfaceNumber,frameLen,scanTimeUs)
         serveFrame = new ServeFrame(readData->Data);
 
         AddOperation(readData);
@@ -121,7 +121,7 @@ namespace kmicki::hiddev
         return false;
     }
 
-    void HidDevReader::SetNoGyro(SignalOut &_noGyro)
+    void HidDevReader::SetWriteData(SignalOut &writeData)
     {
         if(readDataApi)
             readDataApi->SetNoGyro(_noGyro);
