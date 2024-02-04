@@ -1,5 +1,4 @@
 #include "hiddev/hiddevreader.h"
-#include "hiddev/hiddevfinder.h"
 #include "sdgyrodsu/sdhidframe.h"
 #include "sdgyrodsu/presenter.h"
 #include "cemuhook/cemuhookprotocol.h"
@@ -19,7 +18,6 @@ using namespace kmicki::cemuhook;
 
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 const bool cRunPresenter = false;
-const bool cUseHiddevFile = false;
 const bool cTestRun = false;
 
 const int cFrameLen = 64;       // Steam Deck Controls' custom HID report length in bytes
@@ -97,31 +95,9 @@ int main()
         SetLogLevel(cLogLevel);
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
-
-    std::unique_ptr<HidDevReader> readerPtr;
-
-    if(cUseHiddevFile)
-    {
-        int hidno = FindHidDevNo(cVID,cPID);
-        if(hidno < 0) 
-        {
-            Log("Steam Deck Controls' HID device not found.");
-            return 0;
-        }
-
-        { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
-        
-        readerPtr.reset(new HidDevReader(hidno,cFrameLen,cScanTimeUs));
-    }
-    else
-    {
-        readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
-    }
-
-    HidDevReader &reader = *readerPtr;
-
+    
+    HidDevReader reader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs);
     reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
-
     CemuhookAdapter adapter(reader);
     reader.SetNoGyro(adapter.NoGyro);
     Server server(adapter);
