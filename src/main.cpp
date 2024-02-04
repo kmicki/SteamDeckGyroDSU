@@ -9,6 +9,9 @@
 #include <future>
 #include <thread>
 #include <csignal>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
@@ -17,9 +20,9 @@ using namespace kmicki::log::logbase;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
 
+const std::string cExecutableName = "sdgyrodsu";
+
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
-const bool cRunPresenter = false;
-const bool cTestRun = false;
 
 const int cFrameLen = 64;       // Steam Deck Controls' custom HID report length in bytes
 const int cScanTimeUs = 4000;   // Steam Deck Controls' period between received report data in microseconds
@@ -48,7 +51,7 @@ void SignalHandler(int signal)
                 msg << "SIGTERM";
                 break;
             default:
-                msg << "Other";
+                msg << "Other " << signal;
                 stopCmd = false;
                 break;
         }
@@ -101,7 +104,7 @@ void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std
         std::string arg(argv[i]);
 
         if(arg.length() < 2 || arg[0] != '-')
-            throw std::runtime_error("Unknown parameter: " + arg);
+            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
 
         std::string flagStr = "";
 
@@ -123,27 +126,43 @@ void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std
         }
 
         if(flagStr.length() > 0)
-            throw std::runtime_error("Unknown flags: -" + flagStr);
+            throw std::runtime_error("MAIN: Unknown flags: -" + flagStr);
         if(!anyFlag)
-            throw std::runtime_error("Unknown parameter: " + arg);
+            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
     signal(SIGINT,SignalHandler);
     signal(SIGTERM,SignalHandler);
 
+    bool confTestRun = false;
+    bool helpDisplayed = false;
+
+    const std::unordered_map<char,std::function<void()>> flagActions =
+    {
+        { testRunFlag   ,   [&confTestRun]() { confTestRun = true;                      }},
+        { helpFlag      ,   [&helpDisplayed]() { HelpMessage(); helpDisplayed = true;   }}
+    };
+
+    ProcessPars(argc,argv,flagActions);
+
+    if(helpDisplayed)
+        return 0;
+
     stop = false;
 
-    if(cRunPresenter)
-        SetLogLevel(LogLevelNone);
-    else
-        SetLogLevel(cLogLevel);
+    SetLogLevel(cLogLevel);
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
-    
-    HidDevReader reader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs);
+
+    std::unique_ptr<HidDevReader> readerPtr;
+
+    readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
+
+    HidDevReader &reader = *readerPtr;
+
     reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
     CemuhookAdapter adapter(reader);
     reader.SetNoGyro(adapter.NoGyro);
@@ -153,10 +172,8 @@ int main()
     int stopping = 0;
 
     std::unique_ptr<std::thread> presenter;
-    if(cRunPresenter)
-        presenter.reset(new std::thread(PresenterRun,&reader));
 
-    if(cTestRun && !cRunPresenter)
+    if(confTestRun)
         reader.Start();
 
     {
