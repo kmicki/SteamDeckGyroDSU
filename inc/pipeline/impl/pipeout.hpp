@@ -65,21 +65,23 @@ namespace kmicki::pipeline
     }
 
     template<class T>
-    void PipeOut<T>::WaitForData()
+    void PipeOut<T>::WaitForData(bool noGet)
     {
         std::unique_lock lock(bufSentMutex);
         bufSentConditionVariable.wait(lock,[&] { return bufWasSent; });
+        if(noGet) return;
         bufSent.swap(bufRcv);
         bufWasSent = false;
     }
 
     template<class T>
     template<class R,class P>
-    bool PipeOut<T>::WaitForData(std::chrono::duration<R,P> timeout)
+    bool PipeOut<T>::WaitForData(std::chrono::duration<R,P> timeout, bool noGet)
     {
         std::unique_lock lock(bufSentMutex);
         if(bufSentConditionVariable.wait_for(lock,timeout,[&](){ return bufWasSent; }))
         {
+            if(noGet) return true;
             bufSent.swap(bufRcv);
             bufWasSent = false;
             return true;
@@ -88,11 +90,12 @@ namespace kmicki::pipeline
     }
 
     template<class T>
-    bool PipeOut<T>::TryData()
+    bool PipeOut<T>::TryData(bool noGet)
     {
         std::lock_guard lock(bufSentMutex);
         if(bufWasSent)
         {
+            if(noGet) return true;
             bufSent.swap(bufRcv);
             bufWasSent = false;
             return true;

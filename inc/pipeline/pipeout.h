@@ -42,16 +42,19 @@ namespace kmicki::pipeline
         std::unique_ptr<T> const& GetPointer();
         // Wait for object to be send. 
         // Use together with reference to unique_ptr obtained by GetPointer()
-        void WaitForData();
+        // or if noGet == true - use with GetData()
+        void WaitForData(bool noGet = false);
         // Wait for object to be send with timeout. 
         // Use together with reference to unique_ptr obtained by GetPointer().
+        // or if noGet == true - use with GetData()
         // Returns true when data was obtained
         template<class R, class P>
-        bool WaitForData(std::chrono::duration<R,P> timeout);
+        bool WaitForData(std::chrono::duration<R,P> timeout, bool noGet = false);
 
-        // Check if data is waiting.
+        // Check if data is waiting. If it is, acquire data.
         // Use together with reference to unique_ptr obtained by GetPointer()
-        bool TryData();
+        // or if noGet == true - use with GetData()
+        bool TryData(bool noGet = false);
 
         // Force the wait to continue.
         void Flush();

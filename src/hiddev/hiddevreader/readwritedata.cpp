@@ -57,7 +57,7 @@ namespace kmicki::hiddev
             if(!ShouldContinue())
                 break;
 
-            if(writeData && writeData->TryData())
+            if(writeData && writeData->TryData(true))
             {
                 rwd::Log("Try writing data to device.",LogLevelTrace);
                 if(dev.Write(writeData->GetData()))
