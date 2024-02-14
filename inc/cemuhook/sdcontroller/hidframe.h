@@ -1,14 +1,14 @@
-#ifndef _KMICKI_SDGYRODSU_SDHIDFRAME_H_
-#define _KMICKI_SDGYRODSU_SDHIDFRAME_H_
+#ifndef _KMICKI_CEMUHOOK_SDCONTROLLER_HIDFRAME_H_
+#define _KMICKI_CEMUHOOK_SDCONTROLLER_HIDFRAME_H_
 
 #include <cstdint>
 #include "hiddev/hiddevreader.h"
 
-namespace kmicki::sdgyrodsu
+namespace kmicki::cemuhook::sdcontroller
 {
     typedef kmicki::hiddev::frame_t frame_t;
 
-    struct SdHidFrame 
+    struct HidFrame 
     {
         uint32_t Header;
         uint32_t Increment;
@@ -77,7 +77,7 @@ namespace kmicki::sdgyrodsu
         
     };
 
-    SdHidFrame const& GetSdFrame(frame_t const& frame);
+    HidFrame const& GetSdFrame(frame_t const& frame);
 
 }
 

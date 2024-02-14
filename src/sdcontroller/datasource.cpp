@@ -1,5 +1,5 @@
-#include "sdgyrodsu/cemuhookadapter.h"
-#include "sdgyrodsu/sdhidframe.h"
+#include "cemuhook/sdcontroller/datasource.h"
+#include "cemuhook/sdcontroller/hidframe.h"
 #include "log/log.h"
 
 #include <iostream>
@@ -14,12 +14,12 @@ using namespace kmicki::log;
 #define GYRO_DEADZONE 8
 #define ACCEL_SMOOTH 0x1FF
 
-namespace kmicki::sdgyrodsu
+namespace kmicki::cemuhook::sdcontroller
 {
-    static const std::string cLogPrefix = "CemuhookAdapter: ";
+    static const std::string cLogPrefix = "DataSource: ";
     #include "log/locallog.h"
 
-    MotionData CemuhookAdapter::GetMotionData(SdHidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
+    MotionData DataSource::GetMotionData(HidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
     {
         MotionData data;
 
@@ -62,7 +62,7 @@ namespace kmicki::sdgyrodsu
         return data;
     }
 
-    void CemuhookAdapter::SetMotionData(SdHidFrame const& frame, MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
+    void DataSource::SetMotionData(HidFrame const& frame, MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB)
     {
         static const float acc1G = (float)ACC_1G;
         static const float gyro1dps = (float)GYRO_1DEGPERSEC;
@@ -97,7 +97,7 @@ namespace kmicki::sdgyrodsu
         }
     }
 
-    CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader, bool persistent)
+    DataSource::DataSource(hiddev::HidDevReader & _reader, bool persistent)
     : reader(_reader),
       lastInc(0),
       lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),
@@ -106,7 +106,7 @@ namespace kmicki::sdgyrodsu
         Log("Initialized. Waiting for start of frame grab.",LogLevelDebug);
     }
 
-    void CemuhookAdapter::StartFrameGrab()
+    void DataSource::Start()
     {
         lastInc = 0;
         ignoreFirst = true;
@@ -115,7 +115,7 @@ namespace kmicki::sdgyrodsu
         frameServe = &reader.GetServe();
     }
 
-    int const& CemuhookAdapter::SetMotionDataNewFrame(MotionData &motion)
+    int const& DataSource::SetDataNewFrame(MotionData &motion)
     {
         static const int64_t cMaxDiffReplicate = 100;
         static const int cNoGyroCooldownFrames = 1000;
@@ -216,15 +216,15 @@ namespace kmicki::sdgyrodsu
         }
     }
 
-    void CemuhookAdapter::StopFrameGrab()
+    void DataSource::Stop()
     {
-        Log("CemuhookAdapter: Stopping frame grab.",LogLevelDebug);
+        Log("DataSource: Stopping frame grab.",LogLevelDebug);
         reader.StopServe(*frameServe);
         frameServe = nullptr;
         reader.Stop();
     }
 
-    bool CemuhookAdapter::IsControllerConnected()
+    bool DataSource::IsControllerConnected()
     {
         return true;
     }

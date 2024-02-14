@@ -9,7 +9,6 @@
 #include <iostream>
 #include <algorithm>
 
-using namespace kmicki::sdgyrodsu;
 using namespace kmicki::log;
 
 #define PORT 26760
@@ -45,7 +44,7 @@ namespace kmicki::cemuhook
         return ~crc;
     }
 
-    Server::Server(CemuhookAdapter & _motionSource)
+    Server::Server(DataSource & _motionSource)
         : motionSource(_motionSource), stop(false), serverThread(), stopSending(false),
           mainMutex(), stopSendMutex(), socketSendMutex(), checkTimeout(false)
     {
@@ -337,7 +336,7 @@ namespace kmicki::cemuhook
         static const uint32_t cTimeoutIncreasePeriod = 500;
 
         Log("Server: Initiating frame grab start.",LogLevelDebug);
-        motionSource.StartFrameGrab();
+        motionSource.Start();
 
         std::pair<uint16_t , void const*> outBuf;
         uint32_t packet = 0;
@@ -376,7 +375,7 @@ namespace kmicki::cemuhook
 
         Log("Server: Initiating frame grab stop.",LogLevelDebug);
 
-        motionSource.StopFrameGrab();
+        motionSource.Stop();
         Log("Server: Stop sending controller data.",LogLevelDebug);
     }
 
@@ -427,7 +426,7 @@ namespace kmicki::cemuhook
         
         dataAnswer.header.id = id;
         dataAnswer.packetNumber = packet;
-        motionSource.SetMotionDataNewFrame(dataAnswer.motion);
+        motionSource.SetDataNewFrame(dataAnswer.motion);
         
         return std::pair<uint16_t , void const*>(len, reinterpret_cast<void *>(&dataAnswer));
     }

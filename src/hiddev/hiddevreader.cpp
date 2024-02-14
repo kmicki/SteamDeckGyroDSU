@@ -8,7 +8,7 @@ using namespace kmicki::log;
 namespace kmicki::hiddev
 {
     namespace hdr {
-    static const std::string cLogPrefix = "HidDevReader: ";
+        static const std::string cLogPrefix = "HidDevReader: ";
         #include "log/locallog.h"
     }
 
@@ -54,29 +54,28 @@ namespace kmicki::hiddev
     HidDevReader::HidDevReader(uint16_t const& vId, uint16_t const& pId, int const& interfaceNumber, int const& _frameLen, int const& scanTimeUs) 
     : startStopMutex()
     {
-        readWriteData = new ReadWriteData(vId,pId,interfaceNumber,frameLen,scanTimeUs)
-        serveFrame = new ServeFrame(readData->Data);
+        readWriteData = new ReadWriteData(vId,pId,interfaceNumber,_frameLen,scanTimeUs);
+        serveFrame = new ServeFrame(readWriteData->ReadData);
 
-        AddOperation(readData);
+        AddOperation(readWriteData);
         AddOperation(serveFrame);
 
         hdr::Log("Pipeline initialized. Waiting for start...",LogLevelDebug);
     }
-
 
     HidDevReader::~HidDevReader()
     {
         Stop();
     }
 
-    Serve<HidDevReader::frame_t> & HidDevReader::GetServe()
+    Serve<frame_t> & HidDevReader::GetServe()
     {
-        return serve->GetServe();
+        return serveFrame->GetServe();
     }
 
     void HidDevReader::StopServe(Serve<frame_t> & serve)
     {
-        serve->StopServe(serve);
+        serveFrame->StopServe(serve);
     }
 
     void HidDevReader::Start()
@@ -124,9 +123,8 @@ namespace kmicki::hiddev
         return false;
     }
 
-    void HidDevReader::SetWriteData(SignalOut &writeData)
+    void HidDevReader::SetWriteData(PipeOut<frame_t>& _writeData)
     {
-        if(readDataApi)
-            readDataApi->SetNoGyro(_noGyro);
+        readWriteData->SetWriteData(_writeData);
     }
 }

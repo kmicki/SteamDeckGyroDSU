@@ -1,8 +1,7 @@
 #include "hiddev/hiddevreader.h"
-#include "sdgyrodsu/sdhidframe.h"
 #include "cemuhook/cemuhookprotocol.h"
 #include "cemuhook/cemuhookserver.h"
-#include "sdgyrodsu/cemuhookadapter.h"
+#include "cemuhook/sdcontroller/datasource.h"
 #include "log/log.h"
 #include <iostream>
 #include <future>
@@ -11,15 +10,24 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <libgen.h>
+#include <unistd.h>
+#include <linux/limits.h>
+#include <stdexcept>
 
-using namespace kmicki::sdgyrodsu;
+// Configuration
+#include "config/configcollection.h"
+#include "cemuhook/config.h"
+#include "hiddev/hiddevreader.h"
+#include "cemuhook/sdcontroller/datasource.h"
+
 using namespace kmicki::hiddev;
 using namespace kmicki::log;
 using namespace kmicki::log::logbase;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
 
-const std::string cExecutableName = "sdgyrodsu";
+const std::string cExecutableName = "sdcontroller";
 
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 
@@ -155,15 +163,9 @@ int main(int argc, char **argv)
     SetLogLevel(cLogLevel);
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
-
-    std::unique_ptr<HidDevReader> readerPtr;
-
-    readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
-
-    HidDevReader &reader = *readerPtr;
-
-    CemuhookAdapter adapter(reader);
-    reader.SetNoGyro(adapter.NoGyro);
+    
+    HidDevReader reader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs);
+    sdcontroller::DataSource adapter(reader);
     Server server(adapter);
 
     uint32_t lastInc = 0;

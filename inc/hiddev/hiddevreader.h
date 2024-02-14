@@ -17,7 +17,7 @@ namespace kmicki::hiddev
 {
     void HandleMissedTicks(std::string name, std::string tickName, bool received, int & ticks, int period, int & nonMissed);
 
-    // Reads periodic data from a given HID via HIDAPI
+    // Reads periodic data from a given HID device via HIDAPI (based on VID, PID and interface number)
     // in constant-length frames and provides most recent frame.
     class HidDevReader
     {

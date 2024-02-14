@@ -1,11 +1,12 @@
 #ifndef _KMICKI_CEMUHOOK_CEMUHOOKSERVER_H_
 #define _KMICKI_CEMUHOOK_CEMUHOOKSERVER_H_
 
-#include "sdgyrodsu/cemuhookadapter.h"
+#include "datasource.h"
 #include "cemuhookprotocol.h"
 #include <thread>
 #include <netinet/in.h>
 #include <mutex>
+#include <shared_mutex>
 
 using namespace kmicki::cemuhook::protocol;
 
@@ -16,7 +17,7 @@ namespace kmicki::cemuhook
         public:
         Server() = delete;
 
-        Server(sdgyrodsu::CemuhookAdapter & _motionSource);
+        Server(DataSource & _motionSource, Config & _config);
 
         ~Server();
 
@@ -42,7 +43,7 @@ namespace kmicki::cemuhook
 
         int socketFd;
 
-        sdgyrodsu::CemuhookAdapter & motionSource;
+        DataSource & motionSource;
         std::unique_ptr<std::thread> serverThread;
 
         void serverTask();
