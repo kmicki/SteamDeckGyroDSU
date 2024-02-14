@@ -54,6 +54,6 @@ namespace kmicki::pipeline
     };
 }
 
-#include "thread.hpp"
+#include "impl/thread.hpp"
 
 #endif

@@ -1,4 +1,4 @@
-#include "thread.h"
+#include "../thread.h"
 #include <future>
 
 namespace kmicki::pipeline

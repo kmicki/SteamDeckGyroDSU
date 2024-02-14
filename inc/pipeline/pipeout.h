@@ -64,6 +64,6 @@ namespace kmicki::pipeline
     };
 }
 
-#include "pipeout.hpp"
+#include "impl/pipeout.hpp"
 
 #endif

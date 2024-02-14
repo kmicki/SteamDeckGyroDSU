@@ -71,6 +71,6 @@ namespace kmicki::pipeline
     };
 }
 
-#include "serve.hpp"
+#include "impl/serve.hpp"
 
 #endif
