@@ -11,6 +11,8 @@ using namespace kmicki::log;
 using namespace kmicki::log::logbase;
 using namespace kmicki::cemuhook::protocol;
 using namespace kmicki::cemuhook;
+using namespace kmicki::config;
+using namespace kmicki;
 
 const std::string cExecutableName = "sdcontroller";
 
@@ -27,6 +29,15 @@ const std::string cVersion = "2.1";   // Release version
 bool stop = false;
 std::mutex stopMutex = std::mutex();
 std::condition_variable stopCV = std::condition_variable();
+
+std::string GetExeDir()
+{
+    char result[PATH_MAX];
+    if(readlink("/proc/self/exe", result, PATH_MAX) == -1)
+        throw std::runtime_error("Can't read executable's path.");
+    
+    return std::string(dirname(result));
+}
 
 void SignalHandler(int signal)
 {
@@ -96,7 +107,7 @@ void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std
         std::string arg(argv[i]);
 
         if(arg.length() < 2 || arg[0] != '-')
-            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
+            throw std::runtime_error("Unknown parameter: " + arg);
 
         std::string flagStr = "";
 
@@ -118,10 +129,19 @@ void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std
         }
 
         if(flagStr.length() > 0)
-            throw std::runtime_error("MAIN: Unknown flags: -" + flagStr);
+            throw std::runtime_error("Unknown flags: -" + flagStr);
         if(!anyFlag)
-            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
+            throw std::runtime_error("Unknown parameter: " + arg);
     }
+}
+
+bool InitializeConfig(  std::string const& configPath,
+                        std::unique_ptr<ConfigCollection> & configuration, 
+                        kmicki::cemuhook::Config *& serverConfig)
+{
+    configuration.reset(new ConfigCollection(configPath));
+    serverConfig = &(configuration->AddConfig<cemuhook::Config>([](auto& data) { return new cemuhook::Config(data); }));
+    return configuration->Initialize();
 }
 
 int main(int argc, char **argv)
@@ -146,12 +166,34 @@ int main(int argc, char **argv)
     stop = false;
 
     SetLogLevel(cLogLevel);
+        
+    static const char cPathSeparator = '/';
+    static const std::string cConfigFileName = "config.cfg";
+
+    auto path = GetExeDir();
+    std::ostringstream str;
+    str << path;
+    if(path.length() == 0 || *(path.rbegin()) != cPathSeparator)
+        str << cPathSeparator;
+    str << cConfigFileName;
+
+    auto configPath = str.str();
+
+    std::unique_ptr<ConfigCollection> configuration;
+    cemuhook::Config* serverConfig;
+    if(!InitializeConfig(configPath,configuration,serverConfig) && GetLogLevel() != LogLevelTrace)
+    {
+        auto lastLevel = GetLogLevel();
+        SetLogLevel(LogLevelTrace);
+        InitializeConfig(configPath,configuration,serverConfig);
+        SetLogLevel(lastLevel);
+    }
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
     
     HidDevReader reader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs);
     sdcontroller::DataSource adapter(reader);
-    Server server(adapter);
+    Server server(adapter,*serverConfig);
 
     uint32_t lastInc = 0;
     int stopping = 0;

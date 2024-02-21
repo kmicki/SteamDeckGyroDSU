@@ -3,6 +3,7 @@
 
 #include "datasource.h"
 #include "cemuhookprotocol.h"
+#include "config.h"
 #include <thread>
 #include <netinet/in.h>
 #include <mutex>
@@ -69,6 +70,8 @@ namespace kmicki::cemuhook
         std::vector<Client> clients;
 
         void CheckClientTimeout(std::unique_ptr<std::thread> & sendThread, bool increment);
+
+        Config & config;
     };
 }
 
