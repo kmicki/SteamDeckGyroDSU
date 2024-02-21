@@ -1,5 +1,5 @@
 #ifndef _KMICKI_HIDDEV_HIDDEV_
-#define _KMICKI_HIDDEV_HIDDEC_
+#define _KMICKI_HIDDEV_HIDDEV_
 
 #include <vector>
 
