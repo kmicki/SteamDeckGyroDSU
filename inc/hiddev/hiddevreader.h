@@ -115,6 +115,7 @@ namespace kmicki::hiddev
             std::vector<Serve<frame_t>::ServeLock> GetServeLocks();
             std::shared_mutex framesMutex;
             std::condition_variable_any framesCv;
+            std::stop_source stopSrc;
         };
         
         std::vector<std::unique_ptr<Thread>> pipeline;
