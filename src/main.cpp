@@ -1,23 +1,8 @@
-#include "hiddev/hiddevreader.h"
-#include "cemuhook/cemuhookprotocol.h"
 #include "cemuhook/cemuhookserver.h"
-#include "cemuhook/sdcontroller/datasource.h"
 #include "log/log.h"
-#include <iostream>
-#include <future>
-#include <thread>
 #include <csignal>
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include <libgen.h>
-#include <unistd.h>
-#include <linux/limits.h>
-#include <stdexcept>
-
-// Configuration
 #include "config/configcollection.h"
-#include "cemuhook/config.h"
 #include "hiddev/hiddevreader.h"
 #include "cemuhook/sdcontroller/datasource.h"
 
