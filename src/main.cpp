@@ -193,6 +193,7 @@ int main(int argc, char **argv)
     
     HidDevReader reader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs);
     sdcontroller::DataSource adapter(reader);
+    reader.SetWriteData(adapter.WriteData);
     Server server(adapter,*serverConfig);
 
     uint32_t lastInc = 0;

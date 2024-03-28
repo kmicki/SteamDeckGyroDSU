@@ -33,7 +33,7 @@ namespace kmicki::cemuhook::sdcontroller
         cemuhook::protocol::MotionData GetMotionData(HidFrame const& frame, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
         static void SetMotionData(HidFrame const& frame, cemuhook::protocol::MotionData &data, float &lastAccelRtL, float &lastAccelFtB, float &lastAccelTtB);
 
-        SignalOut NoGyro;
+        PipeOut<frame_t> WriteData;
 
         private:
         bool ignoreFirst;
@@ -51,8 +51,11 @@ namespace kmicki::cemuhook::sdcontroller
 
         int toReplicate;
         int noGyroCooldown;
+        int noGyroFilter;
 
         pipeline::Serve<frame_t> * frameServe;
+
+        void RestoreGyro();
     };
 }
 

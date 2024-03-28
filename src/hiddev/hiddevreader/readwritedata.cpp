@@ -61,7 +61,7 @@ namespace kmicki::hiddev
             {
                 rwd::Log("Try writing data to device.",LogLevelTrace);
                 if(dev.Write(writeData->GetData()))
-                    rwd::Log("Date written to device.",LogLevelDebug);
+                    rwd::Log("Data written to device.",LogLevelDebug);
                 else
                     rwd::Log("Data writing to device failed.");
                 continue;

@@ -101,7 +101,8 @@ namespace kmicki::cemuhook::sdcontroller
     : reader(_reader),
       lastInc(0),
       lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),
-      isPersistent(persistent), toReplicate(0), noGyroCooldown(0)
+      isPersistent(persistent), toReplicate(0), noGyroCooldown(0),
+      noGyroFilter(0)
     {
         Log("Initialized. Waiting for start of frame grab.",LogLevelDebug);
     }
@@ -114,11 +115,25 @@ namespace kmicki::cemuhook::sdcontroller
         reader.Start();
         frameServe = &reader.GetServe();
     }
+    
+    void DataSource::RestoreGyro()
+    {   
+        static const std::vector<unsigned char> restoreGyroCmd = {   0x00
+                            , 0x87, 0x0f, 0x30, 0x18, 0x00, 0x07, 0x07, 0x00, 0x08, 0x07, 0x00, 0x31, 0x02, 0x00, 0x18, 0x00
+                            , 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                            , 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                            , 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+        auto& data = WriteData.GetDataToFill();
+        data = restoreGyroCmd;
+        WriteData.SendData();
+    }
 
     int const& DataSource::SetDataNewFrame(MotionData &motion)
     {
         static const int64_t cMaxDiffReplicate = 100;
         static const int cNoGyroCooldownFrames = 1000;
+        static const int cNoGyroFilterFrames = 50;
         static const int cMaxRepeatedLoop = 1000;
 
         if(noGyroCooldown > 0) --noGyroCooldown;
@@ -141,15 +156,23 @@ namespace kmicki::cemuhook::sdcontroller
                 auto lock = frameServe->GetConsumeLock();
                 //Log("CONSUME LOCK ACQUIRED.");
                 auto const& frame = GetSdFrame(*dataFrame);
-
-                if( noGyroCooldown <= 0
-                    &&  frame.AccelAxisFrontToBack == 0 && frame.AccelAxisRightToLeft == 0 
+                if(frame.AccelAxisFrontToBack == 0 && frame.AccelAxisRightToLeft == 0 
                     &&  frame.AccelAxisTopToBottom == 0 && frame.GyroAxisFrontToBack == 0 
                     &&  frame.GyroAxisRightToLeft == 0 && frame.GyroAxisTopToBottom == 0)
                 {
-                    NoGyro.SendSignal();
-                    noGyroCooldown = cNoGyroCooldownFrames;
+                    if(noGyroFilter < cNoGyroFilterFrames)
+                    {
+                        ++noGyroFilter;
+                    }
+                    else if( noGyroCooldown <= 0)
+                    {
+                        Log("Null gyro values. Reenabling gyro.");
+                        RestoreGyro();
+                        noGyroCooldown = cNoGyroCooldownFrames;
+                    }
                 }
+                else
+                    noGyroFilter = 0;
 
                 int64_t diff = (int64_t)frame.Increment - (int64_t)lastInc;
 
