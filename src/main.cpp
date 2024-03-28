@@ -14,7 +14,7 @@ using namespace kmicki::cemuhook;
 using namespace kmicki::config;
 using namespace kmicki;
 
-const std::string cExecutableName = "sdcontroller";
+const std::string cExecutableName = "sdgyrodsu";
 
 const LogLevel cLogLevel = LogLevelDebug; // change to Default when configuration is possible
 
@@ -107,7 +107,7 @@ void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std
         std::string arg(argv[i]);
 
         if(arg.length() < 2 || arg[0] != '-')
-            throw std::runtime_error("Unknown parameter: " + arg);
+            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
 
         std::string flagStr = "";
 
@@ -129,9 +129,9 @@ void ProcessPars(const int &argc, char **argv, const std::unordered_map<char,std
         }
 
         if(flagStr.length() > 0)
-            throw std::runtime_error("Unknown flags: -" + flagStr);
+            throw std::runtime_error("MAIN: Unknown flags: -" + flagStr);
         if(!anyFlag)
-            throw std::runtime_error("Unknown parameter: " + arg);
+            throw std::runtime_error("MAIN: Unknown parameter: " + arg);
     }
 }
 

@@ -11,7 +11,6 @@
 
 using namespace kmicki::log;
 
-// #define PORT 26760
 #define BUFLEN 100
 #define SCANTIME 0
 #define DECKSLOT 0
