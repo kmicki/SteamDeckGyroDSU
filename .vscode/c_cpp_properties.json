@@ -12,7 +12,6 @@
             "compilerArgs": [
                 "-std=c++2a",
                 "-pthread",
-                "-lncurses",
                 "-lhidapi-hidraw"
             ]
         }
