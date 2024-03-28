@@ -5,7 +5,7 @@
 
 Open this page in the browser in **Steam Deck**'s desktop mode.
 
-Download [Update File](https://github.com/kmicki/SteamDeckGyroDSU/releases/latest/download/update-sdgyrodsu.desktop), save it to Desktop and run it by touching or double-clicking *Update GyroDSU*.
+Download [Installation File](https://github.com/kmicki/SteamDeckGyroDSU/releases/latest/download/update-sdgyrodsu.desktop), save it to Desktop and run it by touching or double-clicking *Update GyroDSU*.
 
 This Desktop shortcut may be used also to update the *SteamDeckGyroDSU* to the most recent version.
 
