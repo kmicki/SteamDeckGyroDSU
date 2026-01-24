@@ -118,9 +118,12 @@ namespace kmicki::hiddev
                         accelRawPaths[1] = accelPath + "/in_accel_y_raw";
                         accelRawPaths[2] = accelPath + "/in_accel_z_raw";
                         
-                        float scale = ReadFloat(accelPath + "/in_accel_scale");
-                        accelScale[0] = accelScale[1] = accelScale[2] = scale;
-                        log::Log("IioReader: Found accelerometer at " + accelPath + " with scale " + std::to_string(scale));
+                        for (int i = 0; i < 3; ++i) {
+                            std::string axis = (i == 0 ? "x" : (i == 1 ? "y" : "z"));
+                            accelScale[i] = ReadFloat(accelPath + "/in_accel_" + axis + "_scale");
+                            if (accelScale[i] == 0) accelScale[i] = ReadFloat(accelPath + "/in_accel_scale");
+                        }
+                        log::Log("IioReader: Found accelerometer at " + accelPath + " with scales " + std::to_string(accelScale[0]) + "," + std::to_string(accelScale[1]) + "," + std::to_string(accelScale[2]));
                     }
                     else if (name == "gyro_3d" && !hasGyro)
                     {
@@ -130,9 +133,12 @@ namespace kmicki::hiddev
                         gyroRawPaths[1] = gyroPath + "/in_anglvel_y_raw";
                         gyroRawPaths[2] = gyroPath + "/in_anglvel_z_raw";
 
-                        float scale = ReadFloat(gyroPath + "/in_anglvel_scale");
-                        gyroScale[0] = gyroScale[1] = gyroScale[2] = scale;
-                        log::Log("IioReader: Found gyroscope at " + gyroPath + " with scale " + std::to_string(scale));
+                        for (int i = 0; i < 3; ++i) {
+                            std::string axis = (i == 0 ? "x" : (i == 1 ? "y" : "z"));
+                            gyroScale[i] = ReadFloat(gyroPath + "/in_anglvel_" + axis + "_scale");
+                            if (gyroScale[i] == 0) gyroScale[i] = ReadFloat(gyroPath + "/in_anglvel_scale");
+                        }
+                        log::Log("IioReader: Found gyroscope at " + gyroPath + " with scales " + std::to_string(gyroScale[0]) + "," + std::to_string(gyroScale[1]) + "," + std::to_string(gyroScale[2]));
                     }
                     else if (name == "bmi323-imu" || name == "lsm6dsx" || name == "bmi160") // Legion Go IMUs
                     {
@@ -143,9 +149,12 @@ namespace kmicki::hiddev
                             accelRawPaths[0] = accelPath + "/in_accel_x_raw";
                             accelRawPaths[1] = accelPath + "/in_accel_y_raw";
                             accelRawPaths[2] = accelPath + "/in_accel_z_raw";
-                            float scale = ReadFloat(accelPath + "/in_accel_scale");
-                            accelScale[0] = accelScale[1] = accelScale[2] = scale;
-                            log::Log("IioReader: Found IMU-accel at " + accelPath + " with scale " + std::to_string(scale));
+                            for (int i = 0; i < 3; ++i) {
+                                std::string axis = (i == 0 ? "x" : (i == 1 ? "y" : "z"));
+                                accelScale[i] = ReadFloat(accelPath + "/in_accel_" + axis + "_scale");
+                                if (accelScale[i] == 0) accelScale[i] = ReadFloat(accelPath + "/in_accel_scale");
+                            }
+                            log::Log("IioReader: Found IMU-accel at " + accelPath + " with scales " + std::to_string(accelScale[0]) + "," + std::to_string(accelScale[1]) + "," + std::to_string(accelScale[2]));
                         }
                         if (!hasGyro && FileExists(devPath + "/in_anglvel_x_raw"))
                         {
@@ -154,9 +163,12 @@ namespace kmicki::hiddev
                             gyroRawPaths[0] = gyroPath + "/in_anglvel_x_raw";
                             gyroRawPaths[1] = gyroPath + "/in_anglvel_y_raw";
                             gyroRawPaths[2] = gyroPath + "/in_anglvel_z_raw";
-                            float scale = ReadFloat(gyroPath + "/in_anglvel_scale");
-                            gyroScale[0] = gyroScale[1] = gyroScale[2] = scale;
-                            log::Log("IioReader: Found IMU-gyro at " + gyroPath + " with scale " + std::to_string(scale));
+                            for (int i = 0; i < 3; ++i) {
+                                std::string axis = (i == 0 ? "x" : (i == 1 ? "y" : "z"));
+                                gyroScale[i] = ReadFloat(gyroPath + "/in_anglvel_" + axis + "_scale");
+                                if (gyroScale[i] == 0) gyroScale[i] = ReadFloat(gyroPath + "/in_anglvel_scale");
+                            }
+                            log::Log("IioReader: Found IMU-gyro at " + gyroPath + " with scales " + std::to_string(gyroScale[0]) + "," + std::to_string(gyroScale[1]) + "," + std::to_string(gyroScale[2]));
                         }
                     }
                 }
@@ -190,16 +202,28 @@ namespace kmicki::hiddev
                 // IIO units are m/s^2. 
                 // raw * scale = m/s^2
                 // We want: value * deckAcc1G / 9.80665 = deck units
-                float scale = accelScale[0] * deckAcc1G / 9.80665f;
+                float scaleX = accelScale[0] * deckAcc1G / 9.80665f;
+                float scaleY = accelScale[1] * deckAcc1G / 9.80665f;
+                float scaleZ = accelScale[2] * deckAcc1G / 9.80665f;
                 // Legion Go S mounting (based on iio-dsu-bridge): 
                 // x: [1, 0, 0], y: [0, -1, 0], z: [0, 0, -1]
                 // sdgyrodsu expects:
                 // AxisRightToLeft (X)
                 // AxisFrontToBack (Y)
                 // AxisTopToBottom (Z)
-                sdFrame->AccelAxisRightToLeft = (int16_t)(ReadInt(accelRawPaths[0]) * scale);
-                sdFrame->AccelAxisFrontToBack = (int16_t)(-ReadInt(accelRawPaths[1]) * scale);
-                sdFrame->AccelAxisTopToBottom = (int16_t)(-ReadInt(accelRawPaths[2]) * scale);
+                // We map IIO axes to match iio-dsu-bridge DSU output:
+                // Bridge Accel: X, -Y, -Z
+                // Adapter: accX = -RtL, accY = -FtB, accZ = TtB
+                // -> RtL = X, FtB = -Y, TtB = -Z
+                sdFrame->AccelAxisRightToLeft = (int16_t)(ReadInt(accelRawPaths[0]) * scaleX);
+                sdFrame->AccelAxisFrontToBack = (int16_t)(-ReadInt(accelRawPaths[1]) * scaleY);
+                sdFrame->AccelAxisTopToBottom = (int16_t)(-ReadInt(accelRawPaths[2]) * scaleZ);
+            }
+            else
+            {
+                sdFrame->AccelAxisRightToLeft = 0;
+                sdFrame->AccelAxisFrontToBack = 0;
+                sdFrame->AccelAxisTopToBottom = 0;
             }
 
             if (hasGyro)
@@ -207,12 +231,32 @@ namespace kmicki::hiddev
                 // IIO units are rad/s.
                 // raw * scale = rad/s
                 // We want: value * rad2deg * deckGyro1dps = deck units
-                float scale = gyroScale[0] * rad2deg * deckGyro1dps;
-                // Legion Go S mounting (based on iio-dsu-bridge): 
-                // x: [1, 0, 0], y: [0, -1, 0], z: [0, 0, -1]
-                sdFrame->GyroAxisRightToLeft = (int16_t)(ReadInt(gyroRawPaths[0]) * scale);
-                sdFrame->GyroAxisFrontToBack = (int16_t)(-ReadInt(gyroRawPaths[1]) * scale);
-                sdFrame->GyroAxisTopToBottom = (int16_t)(-ReadInt(gyroRawPaths[2]) * scale);
+                
+                // For some devices (like Legion Go), we might need to increase sensitivity
+                // if the default scale from IIO is too low.
+                float gyroSensitivityMultiplierX = 1.0f;
+                float gyroSensitivityMultiplierYZ = 1.0f;
+                if (gyroScale[0] < 0.02f) { // Heuristic for low sensitivity (rad/s usually ~0.0017)
+                    gyroSensitivityMultiplierX = 12.5f;
+                    gyroSensitivityMultiplierYZ = 2.0f;
+                }
+
+                float scaleX = gyroScale[0] * rad2deg * deckGyro1dps * gyroSensitivityMultiplierX;
+                float scaleY = gyroScale[1] * rad2deg * deckGyro1dps * gyroSensitivityMultiplierYZ;
+                float scaleZ = gyroScale[2] * rad2deg * deckGyro1dps * gyroSensitivityMultiplierYZ;
+
+                // Bridge Gyro: X, -Y, -Z
+                // Adapter: pitch = RtL, yaw = -FtB, roll = TtB
+                // -> RtL = -X, FtB = -Y, TtB = -Z
+                sdFrame->GyroAxisRightToLeft = (int16_t)(-ReadInt(gyroRawPaths[0]) * scaleX);
+                sdFrame->GyroAxisFrontToBack = (int16_t)(-ReadInt(gyroRawPaths[1]) * scaleY);
+                sdFrame->GyroAxisTopToBottom = (int16_t)(-ReadInt(gyroRawPaths[2]) * scaleZ);
+            }
+            else
+            {
+                sdFrame->GyroAxisRightToLeft = 0;
+                sdFrame->GyroAxisFrontToBack = 0;
+                sdFrame->GyroAxisTopToBottom = 0;
             }
 
             {
