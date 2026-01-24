@@ -30,12 +30,45 @@ namespace kmicki::hiddev
         }
     }
 
+    bool HidApiDev::Exists(uint16_t vId, uint16_t pId, int interfaceNumber)
+    {
+        if(hidApiInitialized == 0)
+        {
+            if(hid_init() < 0)
+                return false;
+        }
+        
+        auto info = hid_enumerate(vId,pId);
+        auto infoStart = info;
+
+        bool found = false;
+        while(info != nullptr)
+        {
+            if(info->interface_number == interfaceNumber)
+            {
+                found = true;
+                break;
+            }
+
+            info = info->next;
+        }
+
+        if(infoStart != nullptr)
+            hid_free_enumeration(infoStart);
+
+        if(hidApiInitialized == 0)
+            hid_exit();
+
+        return found;
+    }
+
     bool HidApiDev::Open()
     {
         if(dev != nullptr)
             Close();
 
         auto info = hid_enumerate(vId,pId);
+        auto infoStart = info;
 
         while(info != nullptr)
         {
@@ -45,12 +78,16 @@ namespace kmicki::hiddev
                 if(dev != nullptr)
                 {
                     hid_set_nonblocking(dev,0);
+                    hid_free_enumeration(infoStart);
                     return true;
                 }
             }
 
             info = info->next;
         }
+
+        if(infoStart != nullptr)
+            hid_free_enumeration(infoStart);
 
         return false;
     }

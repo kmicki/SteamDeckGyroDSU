@@ -96,7 +96,7 @@ namespace kmicki::pipeline
     template<class T>
     void Serve<T>::Flush()
     {
-        ServeLock lock;
+        GetServeLock();
     }
 
     template<class T>

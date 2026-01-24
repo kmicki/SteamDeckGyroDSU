@@ -1,5 +1,7 @@
 #include "hiddev/hiddevreader.h"
+#include "hiddev/iioreader.h"
 #include "hiddev/hiddevfinder.h"
+#include "hiddev/hidapidev.h"
 #include "sdgyrodsu/sdhidframe.h"
 #include "sdgyrodsu/presenter.h"
 #include "cemuhook/cemuhookprotocol.h"
@@ -68,7 +70,7 @@ void SignalHandler(int signal)
     stopCV.notify_all();
 }
 
-void PresenterRun(HidDevReader * reader)
+void PresenterRun(MotionReader * reader)
 {
     reader->Start();
     auto & frameServe = reader->GetServe();
@@ -98,27 +100,44 @@ int main()
 
     { LogF() << "SteamDeckGyroDSU Version: " << cVersion; }
 
-    std::unique_ptr<HidDevReader> readerPtr;
+    std::unique_ptr<MotionReader> readerPtr;
+
+    bool useIio = false;
 
     if(cUseHiddevFile)
     {
         int hidno = FindHidDevNo(cVID,cPID);
         if(hidno < 0) 
         {
-            Log("Steam Deck Controls' HID device not found.");
-            return 0;
+            Log("Steam Deck Controls' HID device not found. Trying IIO...");
+            useIio = true;
         }
-
-        { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
-        
-        readerPtr.reset(new HidDevReader(hidno,cFrameLen,cScanTimeUs));
+        else
+        {
+            { LogF() << "Found Steam Deck Controls' HID device at /dev/usb/hiddev" << hidno; }
+            readerPtr.reset(new HidDevReader(hidno,cFrameLen,cScanTimeUs));
+        }
     }
     else
     {
-        readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
+        if (HidApiDev::Exists(cVID,cPID,cInterfaceNumber))
+        {
+            Log("Found Steam Deck Controls' HID device (HIDAPI).");
+            readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
+        }
+        else
+        {
+            Log("Steam Deck Controls' HID device not found (HIDAPI). Trying IIO...");
+            useIio = true;
+        }
     }
 
-    HidDevReader &reader = *readerPtr;
+    if (useIio)
+    {
+        readerPtr.reset(new IioReader(cScanTimeUs));
+    }
+
+    MotionReader &reader = *readerPtr;
 
     reader.SetStartMarker({ 0x01, 0x00, 0x09, 0x40 }); // Beginning of every Steam Decks' HID frame
 

@@ -15,11 +15,25 @@ using namespace kmicki::pipeline;
 
 namespace kmicki::hiddev 
 {
+    class MotionReader
+    {
+    public:
+        typedef std::vector<char> frame_t;
+        virtual ~MotionReader() {}
+        virtual Serve<frame_t> & GetServe() = 0;
+        virtual void Start() = 0;
+        virtual void Stop() = 0;
+        virtual bool IsStarted() = 0;
+        virtual void SetNoGyro(SignalOut& _noGyro) = 0;
+        virtual void StopServe(Serve<frame_t> & _serve) = 0;
+        virtual void SetStartMarker(std::vector<char> const& marker) {}
+    };
+
     void HandleMissedTicks(std::string name, std::string tickName, bool received, int & ticks, int period, int & nonMissed);
 
     // Reads periodic data from a given HID device (/dev/usb/hiddevX)
     // in constant-length frames and provides most recent frame.
-    class HidDevReader
+    class HidDevReader : public MotionReader
     {
         public:
 
@@ -61,27 +75,27 @@ namespace kmicki::hiddev
         ~HidDevReader();
 
         // Set start marker in case hiddev file doesn't provide a way to find start of the frame.
-        void SetStartMarker(std::vector<char> const& marker);
+        void SetStartMarker(std::vector<char> const& marker) override;
 
         // Get frame serve
-        Serve<frame_t> & GetServe();
+        Serve<frame_t> & GetServe() override;
 
         // Stop serving
-        void StopServe(Serve<frame_t> & _serve);
+        void StopServe(Serve<frame_t> & _serve) override;
 
         // Start process of grabbing frames.
-        void Start();
+        void Start() override;
 
         // Stop process of grabbing frames
-        void Stop();
+        void Stop() override;
 
         // Is grabbing frames in progress?
-        bool IsStarted();
+        bool IsStarted() override;
 
         // Is grabbing frames being stopped right now?
         bool IsStopping();
 
-        void SetNoGyro(SignalOut& _noGyro);
+        void SetNoGyro(SignalOut& _noGyro) override;
 
         private:
 

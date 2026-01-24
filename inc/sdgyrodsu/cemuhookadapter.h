@@ -14,7 +14,7 @@ namespace kmicki::sdgyrodsu
         public:
         CemuhookAdapter() = delete;
 
-        CemuhookAdapter(hiddev::HidDevReader & _reader, bool persistent = true);
+        CemuhookAdapter(hiddev::MotionReader & _reader, bool persistent = true);
 
         void StartFrameGrab();
 
@@ -36,7 +36,7 @@ namespace kmicki::sdgyrodsu
         bool isPersistent;
 
         cemuhook::protocol::MotionData data;
-        hiddev::HidDevReader & reader;
+        hiddev::MotionReader & reader;
 
         uint32_t lastInc;
         uint64_t lastTimestamp;
@@ -48,7 +48,7 @@ namespace kmicki::sdgyrodsu
         int toReplicate;
         int noGyroCooldown;
 
-        pipeline::Serve<hiddev::HidDevReader::frame_t> * frameServe;
+        pipeline::Serve<hiddev::MotionReader::frame_t> * frameServe;
     };
 }
 

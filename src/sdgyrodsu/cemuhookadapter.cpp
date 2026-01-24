@@ -95,7 +95,7 @@ namespace kmicki::sdgyrodsu
         }
     }
 
-    CemuhookAdapter::CemuhookAdapter(hiddev::HidDevReader & _reader, bool persistent)
+    CemuhookAdapter::CemuhookAdapter(hiddev::MotionReader & _reader, bool persistent)
     : reader(_reader),
       lastInc(0),
       lastAccelRtL(0.0),lastAccelFtB(0.0),lastAccelTtB(0.0),

@@ -15,6 +15,7 @@ namespace kmicki::hiddev
         ~HidApiDev();
 
         bool Open();
+        static bool Exists(uint16_t vId, uint16_t pId, int interfaceNumber);
         int Read(std::vector<char> & data);
         bool Close();
         bool IsOpen();
