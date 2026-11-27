@@ -10,6 +10,9 @@
 #include <future>
 #include <thread>
 #include <csignal>
+#include <cstdlib>
+#include <fstream>
+#include <hidapi/hidapi.h>
 
 using namespace kmicki::sdgyrodsu;
 using namespace kmicki::hiddev;
@@ -28,7 +31,17 @@ const uint16_t cVID = 0x28de;   // Steam Deck Controls' USB Vendor-ID
 const uint16_t cPID = 0x1205;   // Steam Deck Controls' USB Product-ID
 const int cInterfaceNumber = 2; // Steam Deck Controls' USB Interface Number
 
-const std::string cVersion = "2.1";   // Release version
+const std::string cVersion = "2.2";   // Release version
+
+// Default mapping of IIO IMU axes onto Steam Deck frame axes
+// (accel/gyro: RightToLeft, TopToBottom, FrontToBack).
+// Verified on ROG Xbox Ally X (bmi323) with gravity in 3 poses:
+//   Deck frame axes point to: right side (+x), top edge (-y), out of the screen (-z).
+// Accel and gyro must use the same mapping and it must be a proper rotation (even number of sign flips),
+// otherwise gyro and accelerometer disagree and sensor fusion in clients drifts.
+// May be overridden with environment variables SDGYRO_IIO_ACCEL_MAP and SDGYRO_IIO_GYRO_MAP (e.g. "x,-y,-z").
+const std::string cIioDefaultAccelMap = "x,-y,-z";
+const std::string cIioDefaultGyroMap = "x,-y,-z";
 
 bool stop = false;
 std::mutex stopMutex = std::mutex();
@@ -84,6 +97,46 @@ void PresenterRun(HidDevReader * reader)
     Presenter::Finish();
 }
 
+std::string ReadSysFile(std::string const& path)
+{
+    std::ifstream f(path);
+    std::string value;
+    std::getline(f,value);
+    return value;
+}
+
+bool IsSteamDeck()
+{
+    auto product = ReadSysFile("/sys/class/dmi/id/product_name");
+    return product == "Jupiter" || product == "Galileo";
+}
+
+bool SteamDeckControlsPresent()
+{
+    bool found = false;
+    auto info = hid_enumerate(cVID,cPID);
+    for(auto i = info; i != nullptr; i = i->next)
+        if(i->interface_number == cInterfaceNumber)
+            found = true;
+    hid_free_enumeration(info);
+    return found;
+}
+
+void SetIioAxisMap(char const* envName, std::string const& defaultMap, std::array<IioAxisMap,3> &map)
+{
+    auto env = std::getenv(envName);
+    if(env != nullptr)
+    {
+        if(ParseIioAxisMap(env,map))
+        {
+            { LogF() << "Using " << envName << "=" << env; }
+            return;
+        }
+        { LogF() << "Invalid value of " << envName << ": " << env << ". Using default."; }
+    }
+    ParseIioAxisMap(defaultMap,map);
+}
+
 int main()
 {
     signal(SIGINT,SignalHandler);
@@ -115,7 +168,25 @@ int main()
     }
     else
     {
-        readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
+        std::string iioName;
+        std::string iioPath;
+        if(!IsSteamDeck() && !SteamDeckControlsPresent())
+            iioPath = FindIioImu(iioName);
+
+        if(iioPath.empty())
+        {
+            Log("Using Steam Deck Controls' HID device.");
+            readerPtr.reset(new HidDevReader(cVID,cPID,cInterfaceNumber,cFrameLen,cScanTimeUs));
+        }
+        else
+        {
+            { LogF() << "Device: " << ReadSysFile("/sys/class/dmi/id/product_name") << ". Using IIO IMU device '" << iioName << "' at " << iioPath << "."; }
+            IioImuConfig config;
+            config.devicePath = iioPath;
+            SetIioAxisMap("SDGYRO_IIO_ACCEL_MAP",cIioDefaultAccelMap,config.accel);
+            SetIioAxisMap("SDGYRO_IIO_GYRO_MAP",cIioDefaultGyroMap,config.gyro);
+            readerPtr.reset(new HidDevReader(config,cFrameLen,cScanTimeUs));
+        }
     }
 
     HidDevReader &reader = *readerPtr;
