@@ -1,5 +1,5 @@
 [Unit]
-Description=Steam Deck Gyro DSU Server
+Description=Steam Deck Gyro DSU Server (Steam Deck and SteamOS handhelds)
 After=sockets.target
 StartLimitIntervalSec=0
 

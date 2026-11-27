@@ -10,6 +10,9 @@
 #include "pipeline/serve.h"
 
 #include "hiddevfile.h"
+#include "iioimu.h"
+
+#include <chrono>
 
 using namespace kmicki::pipeline;
 
@@ -54,6 +57,15 @@ namespace kmicki::hiddev
         //           (a block of consecutive frames and then skip)
         // maxScanTime: maximum scan time
         HidDevReader(uint16_t const& vId, uint16_t const& pId, const int& interfaceNumber, int const& _frameLen, int const& scanTimeUs);
+
+        // Constructor.
+        // Starts pipeline.
+        // Reads accelerometer and gyroscope from IIO device (sysfs)
+        // and generates Steam Deck-compatible HID frames.
+        // config: IIO device path and axis mapping
+        // frameLen: Size of single HID data frame
+        // scanTime: Period between generated frames in us.
+        HidDevReader(IioImuConfig const& config, int const& _frameLen, int const& scanTimeUs);
 
         // Destructor. 
         // Stops pipeline.
@@ -143,6 +155,22 @@ namespace kmicki::hiddev
             int timeout;
 
             SignalOut *noGyro;
+        };
+
+        class ReadDataIio : public ReadData
+        {
+            public:
+            ReadDataIio() = delete;
+            ReadDataIio(IioImuConfig const& _config, int const& _frameLen, int const& _scanTimeUs);
+            ~ReadDataIio();
+
+            protected:
+
+            void Execute() override;
+
+            private:
+            IioImuConfig config;
+            std::chrono::microseconds scanTime;
         };
 
         class ProcessData : public Thread

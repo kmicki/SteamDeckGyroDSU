@@ -2,6 +2,8 @@
 #include "hiddev/hidapidev.h"
 #include "log/log.h"
 #include <hidapi/hidapi.h>
+#include <thread>
+#include <chrono>
 
 using namespace kmicki::log;
 
@@ -24,8 +26,18 @@ namespace kmicki::hiddev
         HidApiDev dev(vId,pId,interfaceNumber,timeout);
         
         Log("HidDevReader::ReadDataApi: Opening HID device.",LogLevelDebug);
-        if(!dev.Open())
-            throw std::runtime_error("HidDevReader::ReadDataApi: Problem opening HID device.");
+        bool reportedOpenFail = false;
+        while(!dev.Open())
+        {
+            if(!reportedOpenFail)
+            {
+                Log("HidDevReader::ReadDataApi: Problem opening HID device. Retrying...");
+                reportedOpenFail = true;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            if(!ShouldContinue())
+                return;
+        }
 
         auto const& data = Data.GetPointerToFill();
 

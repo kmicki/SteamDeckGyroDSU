@@ -98,6 +98,14 @@ namespace kmicki::hiddev
     }
 
 
+    HidDevReader::HidDevReader(IioImuConfig const& config, int const& _frameLen, int const& scanTimeUs)
+    : frameLen(_frameLen), startStopMutex(), readDataApi(nullptr)
+    {
+        auto* readDataOp = new ReadDataIio(config, _frameLen, scanTimeUs);
+
+        ConstructPipeline(readDataOp, _frameLen, scanTimeUs, false);
+    }
+
     HidDevReader::~HidDevReader()
     {
         Stop();

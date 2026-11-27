@@ -1,6 +1,8 @@
 # SteamDeckGyroDSU
 **DSU** (*cemuhook protocol*) server for motion data for **Steam Deck**.
 
+Also works on other handhelds running **SteamOS** whose motion sensor is exposed by the kernel as an IIO device (e.g. **ROG Xbox Ally X** with `bmi323-imu`). See [Other devices](#other-devices).
+
 ## Install/Update
 
 Open this page in the browser in **Steam Deck**'s desktop mode.
@@ -18,6 +20,20 @@ Server is running as a service. It provides motion data for cemuhook at Deck's I
 Optionally, another UDP server port may be specified in an environment variable **SDGYRO_SERVER_PORT**.
 
 **Remark:** The server provides only motion data. Remaining controls (buttons/axes) are not provided.
+
+### Other devices
+
+When the Steam Deck's controller is not found, the server reads the accelerometer and gyroscope from the first IIO device in `/sys/bus/iio/devices` that provides both (no root access needed). Log line at startup shows which source is used:
+
+    journalctl --user -u sdgyrodsu | grep "Using"
+
+Mapping of sensor axes was verified on **ROG Xbox Ally X**. On other devices, if motion axes are inverted or swapped, the mapping can be overridden with environment variables in the service (`systemctl --user edit sdgyrodsu`):
+
+    [Service]
+    Environment=SDGYRO_IIO_ACCEL_MAP=x,-y,-z
+    Environment=SDGYRO_IIO_GYRO_MAP=x,-y,-z
+
+Each value lists sensor axes (optionally negated) for the Steam Deck frame axes, which point to: the right side, the top edge and out of the screen. Accelerometer and gyroscope should use the same mapping, with an even number of negations; otherwise motion drifts in clients that combine both sensors.
 
 ### Client (emulator) Configuration
 
